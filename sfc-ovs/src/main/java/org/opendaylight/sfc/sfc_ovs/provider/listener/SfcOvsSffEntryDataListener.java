@@ -27,14 +27,20 @@ import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.common.api.data.AsyncDataChangeEvent;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.sfc.provider.OpendaylightSfc;
+import org.opendaylight.sfc.provider.api.SfcDataStoreAPI;
 import org.opendaylight.sfc.sfc_ovs.provider.SfcOvsUtil;
 import org.opendaylight.sfc.sfc_ovs.provider.api.SfcSffToOvsMappingAPI;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffName;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.SffOvsBridgeAugmentation;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.bridge.OvsBridge;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.ServiceFunctionForwarders;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarderKey;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.SffDataPlaneLocator;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbBridgeAugmentation;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbNodeAugmentation;
+import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.Topology;
+import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.topology.Node;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.opendaylight.yangtools.yang.binding.KeyedInstanceIdentifier;
@@ -133,6 +139,26 @@ public class SfcOvsSffEntryDataListener extends SfcOvsAbstractDataListener {
      */
     static void addOvsdbAugmentations(ServiceFunctionForwarder sff, ExecutorService executor) {
 
+        SffOvsBridgeAugmentation serviceForwarderOvsBridgeAugmentation =
+                sff.getAugmentation(SffOvsBridgeAugmentation.class);
+        if (serviceForwarderOvsBridgeAugmentation != null ) {
+            Topology topology = SfcDataStoreAPI.readTransactionAPI(SfcOvsUtil.buildOvsdbTopologyIID(),
+                    LogicalDatastoreType.OPERATIONAL);
+            if (topology.getNode() != null) {
+                for (Node node : topology.getNode()) {
+                    OvsdbNodeAugmentation ovsdbNodeAug = node.getAugmentation(OvsdbNodeAugmentation.class);
+
+                    if (ovsdbNodeAug != null && ovsdbNodeAug.getConnectionInfo() != null) {
+                        OvsBridge serviceForwarderOvsBridge = serviceForwarderOvsBridgeAugmentation.getOvsBridge();
+                        if (serviceForwarderOvsBridgeAugmentation.getOvsBridge().getBridgeName().equals(serviceForwarderOvsBridge.getBridgeName())) {
+                            LOG.info("---------OVS bridge already exist {}", serviceForwarderOvsBridge.getBridgeName());
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
         OvsdbBridgeAugmentation ovsdbBridge = SfcSffToOvsMappingAPI.buildOvsdbBridgeAugmentation(sff, executor);
 
         if (ovsdbBridge != null) {
@@ -141,6 +167,9 @@ public class SfcOvsSffEntryDataListener extends SfcOvsAbstractDataListener {
 
             // put Termination Points
             SfcOvsUtil.putOvsdbTerminationPoints(ovsdbBridge, sff.getSffDataPlaneLocator(), executor);
+        } else {
+            LOG.info("----nulll {}", sff.getName().getValue());
         }
+
     }
 }

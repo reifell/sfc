@@ -179,7 +179,9 @@ public class SfcRspProcessorNsh extends SfcRspTransportProcessorBase {
     @Override
     public void configureNextHopFlow(SffGraph.SffGraphEntry entry, SffDataPlaneLocator srcSffDpl,
             SfDataPlaneLocator dstSfDpl) {
-        IpPortLocator dstSfLocator = (IpPortLocator) dstSfDpl.getLocatorType();
+        LocatorType dpl = dstSfDpl.getLocatorType();
+        dpl.getImplementedInterface();
+        IpPortLocator dstSfLocator = (IpPortLocator) dpl;//dstSfDpl.getLocatorType();
         this.configureNextHopFlow(entry, entry.getDstSff(), new String(dstSfLocator.getIp().getValue()));
     }
 

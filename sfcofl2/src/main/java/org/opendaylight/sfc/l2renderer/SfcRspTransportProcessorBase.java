@@ -11,6 +11,7 @@ package org.opendaylight.sfc.l2renderer;
 import java.util.Iterator;
 import java.util.List;
 
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffDataPlaneLocatorName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -175,7 +176,13 @@ public abstract class SfcRspTransportProcessorBase {
             this.sffGraph.setSffEgressDpl(sff.getName(), pathId, sffDplList.get(0).getName());
             return true;
         }
-
+        SffDataPlaneLocatorName egreesName = null;
+        for (SffDataPlaneLocator egreessdpl : sffDplList) {
+            if (egreessdpl.getName().getValue().equals("egress")) {
+                egreesName = egreessdpl.getName();
+                continue;
+            }
+        }
         for (SffDataPlaneLocator sffDpl : sffDplList) {
             LOG.debug("try to match sffDpl name: {}, type: {}", sffDpl.getName(),
                     sffDpl.getDataPlaneLocator().getTransport().getName());
@@ -185,7 +192,11 @@ public abstract class SfcRspTransportProcessorBase {
             if (sffDpl.getDataPlaneLocator().getTransport().getName().equals(rspTransport)) {
                 if (ingressDplSet) {
                     // the SFF ingressDpl was already set, so we need to set the egress
-                    this.sffGraph.setSffEgressDpl(sff.getName(), pathId, sffDpl.getName());
+                    SffDataPlaneLocatorName egrees = sffDpl.getName();
+                    if (egreesName != null) {
+                        egrees = egreesName;
+                    }
+                    this.sffGraph.setSffEgressDpl(sff.getName(), pathId, egrees );
                 } else {
                     this.sffGraph.setSffIngressDpl(sff.getName(), pathId, sffDpl.getName());
                 }
@@ -272,7 +283,8 @@ public abstract class SfcRspTransportProcessorBase {
                 LOG.debug("comparing prev locator [{}] : [{}] to [{}] : [{}]", prevSffDpl.getName(), prevLocatorType,
                         curSffDpl.getName(), curLocatorType);
                 if (compareLocatorTypes(prevLocatorType, curLocatorType)) {
-                    this.sffGraph.setSffEgressDpl(prevSff.getName(), pathId, prevSffDpl.getName());
+                    SffDataPlaneLocatorName egreesName = prevSffDpl.getName();
+                    this.sffGraph.setSffEgressDpl(prevSff.getName(), pathId, egreesName);
                     this.sffGraph.setSffIngressDpl(curSff.getName(), pathId, curSffDpl.getName());
                     return true;
                 }

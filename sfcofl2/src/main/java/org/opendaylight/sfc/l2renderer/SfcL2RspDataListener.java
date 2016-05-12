@@ -69,6 +69,7 @@ public class SfcL2RspDataListener extends SfcL2AbstractDataListener {
             if ((entry.getValue() instanceof RenderedServicePath && (!(dataCreatedConfigurationObject.containsKey(entry.getKey()))))) {
                 LOG.info("SfcL2RspDataListener.onDataChanged update RSP {}", ((RenderedServicePath) entry.getValue()).getName());
                 // Currently RSP updates are not supported
+                //this.sfcL2RspProcessor.processRenderedServicePath((RenderedServicePath) entry.getValue());
             }
         }
 

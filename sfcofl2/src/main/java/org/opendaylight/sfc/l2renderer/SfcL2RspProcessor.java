@@ -15,6 +15,7 @@ import java.util.Set;
 
 import org.opendaylight.sfc.l2renderer.openflow.SfcL2FlowProgrammerInterface;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SfName;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffDataPlaneLocatorName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.rsp.rev140701.rendered.service.paths.RenderedServicePath;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.rsp.rev140701.rendered.service.paths.rendered.service.path.RenderedServicePathHop;
@@ -92,19 +93,23 @@ public class SfcL2RspProcessor {
             //
             SffGraph.SffGraphEntry entry = null;
             Iterator<SffGraph.SffGraphEntry> sffGraphIter = sffGraph.getGraphEntryIterator();
+
             while (sffGraphIter.hasNext()) {
                 entry = sffGraphIter.next();
                 LOG.debug("build flows of entry: {}", entry);
+                SffDataPlaneLocatorName NAME = sffGraph.getSffEgressDpl(entry.getSrcSff(), entry.getPathId());
 
                 // The flows created by initializeSff dont belong to any particular RSP
                 sfcL2FlowProgrammer.setFlowRspId(SFC_FLOWS);
                 initializeSff(entry);
                 sfcL2FlowProgrammer.setFlowRspId(rsp.getPathId());
-
+                NAME = sffGraph.getSffEgressDpl(entry.getSrcSff(), entry.getPathId());
                 configureTransportIngressFlows(entry, sffGraph, transportProcessor);
                 configurePathMapperFlows(entry, sffGraph, transportProcessor);
                 configureNextHopFlows(entry, sffGraph, transportProcessor);
+                NAME = sffGraph.getSffEgressDpl(entry.getSrcSff(), entry.getPathId());
                 configureTransportEgressFlows(entry, sffGraph, transportProcessor);
+                NAME = sffGraph.getSffEgressDpl(entry.getSrcSff(), entry.getPathId());
             }
 
             LOG.info("Processing complete for RSP: name [{}] Id [{}]", rsp.getName(), rsp.getPathId());

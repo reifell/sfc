@@ -17,8 +17,13 @@ import java.util.concurrent.ExecutionException;
 import org.opendaylight.sfc.l2renderer.sfg.GroupBucketInfo;
 import org.opendaylight.sfc.sfc_ovs.provider.SfcOvsUtil;
 import org.opendaylight.sfc.util.openflow.SfcOpenflowUtils;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.Uri;
+//import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.FloodActionCaseBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.GroupActionCaseBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.OutputActionCaseBuilder;
+//import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.flood.action._case.FloodActionBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.group.action._case.GroupActionBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.output.action._case.OutputActionBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.list.Action;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.list.ActionBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.list.ActionKey;
@@ -683,7 +688,11 @@ public class SfcL2FlowProgrammerOFimpl implements SfcL2FlowProgrammerInterface {
      * @return a FlowBuilder with the created Path Mapper flow
      */
     private FlowBuilder configurePathMapperSfFlow(final long pathId, MatchBuilder match, List<Action> actionList) {
-        SfcOpenflowUtils.addMatchDscp(match, (short) pathId);
+        short dscp = (short) pathId;
+        if ((pathId & 0x800000) == 0x800000) {
+            dscp ++;
+        }
+        SfcOpenflowUtils.addMatchDscp(match, dscp);
         return configurePathMapperFlow(pathId, match, actionList, FLOW_PRIORITY_PATH_MAPPER+10);
     }
 
@@ -947,9 +956,14 @@ public class SfcL2FlowProgrammerOFimpl implements SfcL2FlowProgrammerInterface {
         // In order to set the IP DSCP, we need to match IPv4
         SfcOpenflowUtils.addMatchEtherType(match, SfcOpenflowUtils.ETHERTYPE_IPV4);
 
+        short dscp = (short) pathId;
+        if ((pathId & 0x800000) == 0x800000) {
+            dscp ++;
+        }
+
         int order = 0;
         List<Action> actionList = new ArrayList<>();
-        actionList.add(SfcOpenflowUtils.createActionWriteDscp((short) pathId, order++));
+        actionList.add(SfcOpenflowUtils.createActionWriteDscp(dscp, order++));
         actionList.add(SfcOpenflowUtils.createActionPushVlan(order++));
         actionList.add(SfcOpenflowUtils.createActionSetVlanId(dstVlan, order++));
 
@@ -1312,6 +1326,27 @@ public class SfcL2FlowProgrammerOFimpl implements SfcL2FlowProgrammerInterface {
 
         // Create an Apply Action
         ApplyActionsBuilder aab = new ApplyActionsBuilder();
+        //aab.setAction(actionList);
+
+        ActionBuilder ab = new ActionBuilder();
+        int orderUsed = order++;
+        ab.setOrder(orderUsed);
+        ab.setKey(new ActionKey(orderUsed));
+
+        Uri value;
+        if (port != null && !port.equals("INPORT")) {
+            value = new Uri(port);
+        } else {
+            value = new Uri(OutputPortValues.NORMAL.toString());
+        }
+        OutputActionBuilder output = new OutputActionBuilder();
+        output.setOutputNodeConnector(value);
+        ab.setAction(new OutputActionCaseBuilder().setOutputAction(output.build()).build());
+        //FloodActionBuilder outputflood = new FloodActionBuilder();
+        //ab.setAction(new FloodActionCaseBuilder().setFloodAction(outputflood.build()).build());
+        Action outaction = ab.build();
+        actionList.add(outaction);
+
         aab.setAction(actionList);
 
         // Wrap our Apply Action in an Instruction

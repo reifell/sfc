@@ -37,7 +37,7 @@ public class SfcServicePathId {
     /* We only use half of the path-id space in order to use algorithmic symmetric
      * path-id generation
      */
-    private final static int MAX_PATH_ID = (int) Math.pow(2, 12) - 1;
+    private final static int MAX_PATH_ID = 63;//(int) Math.pow(2, 12) - 1;
     private final static int MIN_PATH_ID = 0;
     private final static int DEFAULT_GENERATION_ALGORITHM = GenerationAlgorithmEnum.Random.getIntValue();
     private static final Random randomGenerator = new Random();

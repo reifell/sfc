@@ -56,6 +56,13 @@
         <lispflowmapping.version>1.3.3-SNAPSHOT</lispflowmapping.version>
         <ovsdb.southbound.version>1.2.4-SNAPSHOT</ovsdb.southbound.version>
         <l2switch.version>0.3.3-SNAPSHOT</l2switch.version>
+        <feature.l2switch.version>0.3.3-SNAPSHOT</feature.l2switch.version>
+         <!--
+        <lispflowmapping.version>1.3.2-SNAPSHOT</lispflowmapping.version>
+        <ovsdb.southbound.version>1.2.3-SNAPSHOT</ovsdb.southbound.version>
+        <l2switch.version>0.3.2-SNAPSHOT</l2switch.version>
+        <feature.l2switch.version>0.3.2-SNAPSHOT</feature.l2switch.version>
+ -->
 
         <!-- Supporting Libraries -->
         <feature.openflowplugin.version>0.2.3-SNAPSHOT</feature.openflowplugin.version>
@@ -204,6 +211,7 @@
         <module>features</module>
         <module>sfc-karaf</module>
         <module>sfc-bootstrap</module>
+        <module>sfc-monitor</module>
     </modules>
 
     <build>

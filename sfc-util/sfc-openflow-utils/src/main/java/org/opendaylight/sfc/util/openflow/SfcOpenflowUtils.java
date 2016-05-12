@@ -297,7 +297,6 @@ public class SfcOpenflowUtils {
         if(ipMatch == null) {
             return ipMatchBuilder.build();
         }
-
         if(ipMatch.getIpDscp() != null) {
             ipMatchBuilder.setIpDscp(ipMatch.getIpDscp());
         }
@@ -638,7 +637,6 @@ public class SfcOpenflowUtils {
         IpMatchBuilder ipMatch = new IpMatchBuilder();
         Dscp dscp = new Dscp(dscpVal);
         ipMatch.setIpDscp(dscp);
-
         SetFieldCaseBuilder setFieldCase = new SetFieldCaseBuilder();
         setFieldCase.setSetField(
                 new SetFieldBuilder().setIpMatch(ipMatch.build())

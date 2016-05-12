@@ -108,11 +108,20 @@ public class SfcProviderServiceTypeAPI {
         printTraceStart(LOG);
         ServiceFunctionType sft;
         InstanceIdentifier<ServiceFunctionType> sftIID;
+        //String sftStr =String.format("service-function-type:%s", serviceFunctionType.getValue());
+//        String [] parts = serviceFunctionType.getValue().split(":");
+//        SftType sftTemp = new SftType(parts[1]);
         ServiceFunctionTypeKey serviceFunctionTypeKey = new ServiceFunctionTypeKey(serviceFunctionType);
         sftIID = InstanceIdentifier.builder(ServiceFunctionTypes.class)
             .child(ServiceFunctionType.class, serviceFunctionTypeKey)
             .build();
         sft = SfcDataStoreAPI.readTransactionAPI(sftIID, LogicalDatastoreType.CONFIGURATION);
+//
+//        InstanceIdentifier<ServiceFunctionTypes> sftIIDs;
+//        ServiceFunctionTypes sfts;
+//        sftIIDs = InstanceIdentifier.builder(ServiceFunctionTypes.class).build();
+//        sfts = SfcDataStoreAPI.readTransactionAPI(sftIIDs, LogicalDatastoreType.CONFIGURATION);
+//        SftType t = sfts.getServiceFunctionType().get(0).getKey().getType();
         if (sft == null) {
             LOG.error("Could not read Service Function list for Type {} " + "", serviceFunctionType);
         }

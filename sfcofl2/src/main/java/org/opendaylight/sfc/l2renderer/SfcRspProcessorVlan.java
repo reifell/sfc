@@ -260,6 +260,7 @@ public class SfcRspProcessorVlan extends SfcRspTransportProcessorBase {
         String srcMac = sfcProviderUtils.getDplPortInfoMac(srcSffDpl);
         String dstMac = sfcProviderUtils.getDplPortInfoMac(dstSffDpl);
         if (entry.getDstSff().equals(SffGraph.EGRESS)) {
+            //srcOfsPortStr = "NORMAL";
             this.sfcFlowProgrammer.configureVlanLastHopTransportEgressFlow(
                     sffNodeName, srcMac, dstMac, vlanTag,
                     srcOfsPortStr, entry.getPathId());
