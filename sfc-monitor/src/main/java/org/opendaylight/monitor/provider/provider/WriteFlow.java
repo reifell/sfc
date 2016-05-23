@@ -53,9 +53,9 @@ public class WriteFlow {
         // When we close this service we need to shutdown our executor!
         threadPoolExecutorService.shutdown();
         if (!threadPoolExecutorService.awaitTermination(SHUTDOWN_TIME, TimeUnit.SECONDS)) {
-            LOG.error("SfcL2FlowProgrammerOFimpl Executor did not terminate in the specified time.");
+            LOG.error("WriteFlow Executor did not terminate in the specified time.");
             List<Runnable> droppedTasks = threadPoolExecutorService.shutdownNow();
-            LOG.error("SfcL2FlowProgrammerOFimpl Executor was abruptly shut down. [{}] tasks will not be executed.",
+            LOG.error("WriteFlow Executor was abruptly shut down. [{}] tasks will not be executed.",
                     droppedTasks.size());
         }
     }

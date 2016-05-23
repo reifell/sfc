@@ -221,7 +221,8 @@ public class SfcRspProcessorVlan extends SfcRspTransportProcessorBase {
         ServiceFunction sf = sfcProviderUtils.getServiceFunction(entry.getSf(), entry.getPathId());
         // FIXME: I would caution against this approach. Instead you may want to see if
         // ServiceFunctionType has "bidirectional" = True in future.
-        if (sf.getType().getValue().equals("tcp-proxy")) {
+        String type = sf.getType().getValue();
+        if (String.valueOf("service-function-type:tcp-proxy").equals(type)) {
             LOG.info("SfcRspProcessorVlan::configureSfTransportEgressFlow TCP PROXY");
             // If the SF is a TCP Proxy, we need this additional flow for the SF:
             // - a flow that will also check for TCP Syn and do a PktIn

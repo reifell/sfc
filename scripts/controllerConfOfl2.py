@@ -175,52 +175,6 @@ def post(host, port, uri, data, debug=False):
     time.sleep(2)
 
 
-# def get_json_SF1():
-#     return {
-#         "service-functions": {
-#             "service-function": [
-#                 {
-#                     "name": "SF1",
-#                     "ip-mgmt-address": "10.0.0.1",
-#                     "type": "service-function-type:test",
-#                     "nsh-aware": "false",
-#                     "sf-data-plane-locator": [
-#                         {
-#                             "name": "SF1-plane",
-#                             "port": 6002,
-#                             "ip": "10.0.0.1",
-#                             "transport": "service-locator:vxlan-gpe",
-#                             "service-function-forwarder": "SFF0"
-#                         }
-#                     ]
-#                 }
-#             ]
-#         }
-#     }
-
-
-# def get_json_SF2():
-#     return {
-#         "service-functions": {
-#             "service-function": [
-#                 {
-#                     "name": "SF2",
-#                     "ip-mgmt-address": "10.0.0.2",
-#                     "type": "service-function-type:dpi",
-#                     "nsh-aware": "false",
-#                     "sf-data-plane-locator": [
-#                         {
-#                             "name": "SF1-plane",
-#                             "port": 6002,
-#                             "ip": "10.0.0.2",
-#                             "transport": "service-locator:vxlan-gpe",
-#                             "service-function-forwarder": "SFF0"
-#                         }
-#                     ]
-#                 }
-#             ]
-#         }
-#     }
 
 
 def get_json_SF1():
@@ -248,7 +202,7 @@ def get_json_SF2():
         "service-function":
             {
                 "name": "SF2",
-                "type": "service-function-type:dpi",
+                "type": "service-function-type:dpi", #"service-function-type:tcp-proxy", #
                 "nsh-aware": "false",
                 "ip-mgmt-address": "10.0.0.2",
                 "sf-data-plane-locator": [
@@ -286,21 +240,21 @@ def get_json_SSF1():
                             "port": 6633,
                             "ip": "192.168.100.103"
                         }
-                    },
-                    {
-                        "name": "ingress",
-                        "data-plane-locator":
-                            {
-                                "transport": "service-locator:mac",
-                                "vlan-id": 100,
-                                "mac": "00:00:00:00:EE:EE"
-                            },
-                            "service-function-forwarder-ofs:ofs-port":
-                            {
-                                #"mac": "00:00:00:00:11:11",
-                                "port-id": "3"#"1"
-                            }
-                    },
+                     },
+                    # {
+                    #     "name": "ingress",
+                    #     "data-plane-locator":
+                    #         {
+                    #             "transport": "service-locator:mac",
+                    #             "vlan-id": 100,
+                    #             "mac": "00:00:00:00:EE:EE"
+                    #         },
+                    #         "service-function-forwarder-ofs:ofs-port":
+                    #         {
+                    #             #"mac": "00:00:00:00:11:11",
+                    #             "port-id": "3"#"1"
+                    #         }
+                    # },
                     {
                         "name": "egress",
                         "data-plane-locator":

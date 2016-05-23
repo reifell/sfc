@@ -59,6 +59,9 @@ public class MonitorProvider implements AutoCloseable {
             if(ForwarderFlowListner != null) {
                 ForwarderFlowListner.close();
             }
+            if (packetInListener != null) {
+                packetInListener.close();
+            }
 
         } catch(Exception e) {
             LOG.error("SfcL2Renderer auto-closed exception {}", e.getMessage());

@@ -30,6 +30,7 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.instru
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.instruction.list.InstructionKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.Nodes;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.Node;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.NodeKey;
 import org.opendaylight.yangtools.concepts.ListenerRegistration;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
@@ -117,29 +118,11 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
             if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE) ) {
                 Match match = flow.getMatch();
-                LOG.info("match - {}", match.toString());
+                //LOG.info("match - {}", match.toString());
                 FlowBuilder flowBuilder = new FlowBuilder(flow);
                 flowBuilder.setCookie(new FlowCookie(flow.getCookie().getValue().add(BigInteger.ONE)));
                 flowBuilder.setCookieMask(new FlowCookie(flow.getCookieMask().getValue().add(BigInteger.ONE)));
-//                flowBuilder.setPriority(flow.getPriority()+1);
-//                flowBuilder.setId(flow.getId());
-//                flowBuilder.setKey(flow.getKey());
-//                flowBuilder.setTableId(TABLE_INDEX_TRANSPORT_EGRESS);
-//                flowBuilder.setFlowName("sfc-monitor");
-//                IpMatch ipMatch = match.getIpMatch();
-//                IpMatchBuilder ipMatchBuider;
-//                if (ipMatch != null) {
-//                    LOG.info("ip match - {}", ipMatch.toString());
-//                    ipMatchBuider = new IpMatchBuilder(ipMatch);
-//                } else {
-//                    LOG.info("ip match null");
-//                    ipMatchBuider = new IpMatchBuilder();
-//                }
-//                Short enc = 1;
-//                ipMatchBuider.setIpEcn(enc);
-               // MatchBuilder matchBuilder = new MatchBuilder(match);
-//                matchBuilder.setIpMatch(ipMatchBuider.build());
-                //flowBuilder.setMatch(matchBuilder.build());
+
 
                 Instructions instruction = flow.getInstructions();
                 List<Instruction> instructionList =  instruction.getInstruction();
@@ -151,70 +134,13 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
                 newInstructions.setInstruction(instructionList);
 
-//                InstructionBuilder ib = new InstructionBuilder();
-//                List<Action> actions = new ArrayList<>();
-//
-//                actions.add(setOutputAction(0).build());
-//                ApplyActionsBuilder aab = new ApplyActionsBuilder();
-//                aab.setAction(actions);
-//
-//                ib.setInstruction(new ApplyActionsCaseBuilder().setApplyActions(aab.build()).build());
-//                ib.setOrder(0);
-//                ib.setKey(new InstructionKey(0));
-
-
-                //newInstructions.getInstruction().add(ib.build());
-
-
                 flowBuilder.setInstructions(newInstructions.build());
 
-
-
-
-//                ActionBuilder ab = new ActionBuilder();
-//                ab.setOrder(1);
-//                ab.setKey(new ActionKey(1));
-//                Uri value = new Uri(OutputPortValues.CONTROLLER.toString());
-//
-//                OutputActionBuilder output = new OutputActionBuilder();
-//                output.setOutputNodeConnector(value);
-//                ab.setAction(new OutputActionCaseBuilder().setOutputAction(output.build()).build());
-//                List<Action> actions = new ArrayList<>();
-//                Action outaction = ab.build();
-//                ApplyActionsBuilder aab = new ApplyActionsBuilder();
-//                actions.add(outaction);
-//
-//                aab.setAction(actions);
-//
-//                // Wrap our Apply Action in an Instruction
-//                InstructionBuilder ib = new InstructionBuilder();
-//                ib.setInstruction(new ApplyActionsCaseBuilder().setApplyActions(aab.build()).build());
-//                ib.setOrder(0);
-//                ib.setKey(new InstructionKey(0));
-//
-//                // Put our Instruction in a list of Instructions
-//                List<Instruction> instructions = new ArrayList<>();
-//                instructions.add(ib.build());
-//                InstructionsBuilder isb = new InstructionsBuilder();
-//                isb.setInstruction(instructions);
-//                flowBuilder.setInstructions(isb.build());
                 LOG.info("-----------------------------------------------------");
                 LOG.info("SEND FLOWWWWWWWWW - ----- {}    action {}",flowBuilder.getMatch().toString(), flowBuilder.getInstructions().toString());
-                LOG.info("-----------------------------------------------------");
-                //NodeRef sffnode =  new NodeRef(nodeIdent.firstIdentifierOf(Node.class));
-//                FlowCapableNode fc = nodeIdent.getTargetType().cast(FlowCapableNode.class);
-//
-//                final TableKey tableKey = identifier.firstKeyOf(Table.class, TableKey.class);
-//               // if (tableIdValidationPrecondition(tableKey, addDataObj)) {
-//                    final AddFlowInputBuilder builder = new AddFlowInputBuilder(addDataObj);
-//
-//                    builder.setNode(new NodeRef(nodeIdent.firstIdentifierOf(Node.class)));
-//
-//                    AddFlowInput gg = builder.build();
-//
-//               // }
 
-                writeFlow.writeFlowToConfig("openflow:2", flowBuilder);
+                final String nodeName = key.firstKeyOf(Node.class, NodeKey.class).getId().getValue();
+                writeFlow.writeFlowToConfig(nodeName, flowBuilder);
 
             }
 

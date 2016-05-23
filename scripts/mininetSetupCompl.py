@@ -35,17 +35,12 @@ def emptyNet():
 
     gw.setMAC('00:00:00:00:00:FE')
     gw.setIP('10.0.0.30')
-    #call('ovs-vsctl set port sw2-eth1 tag=111', shell=True)
-    #call('ovs-vsctl set port sw2-eth2 tag=112', shell=True)
+
 
     call('ovs-vsctl set bridge sw1 protocols=OpenFlow13', shell=True)
     call('ovs-vsctl set bridge sw2 protocols=OpenFlow13', shell=True)
 
-    # vlanId = 300
-    # call("ovs-ofctl add-flow sw1 priority=1000,udp,nw_dst=10.0.0.2,actions=mod_vlan_vid:" + str(vlanId) + ",output:3", shell=True)
-    # call("ovs-ofctl add-flow sw1 priority=1001,ip,dl_vlan=" + str(vlanId +1)+ ",actions=output:4", shell=True)
-    # call("ovs-ofctl add-flow sw1 priority=1002,dl_src=00:00:00:00:00:fe,actions=normal", shell=True)
-    # call("ovs-ofctl add-flow sw1 priority=99,actions=normal", shell=True)
+
 
     sf1.setMAC('00:00:00:00:00:11')
     sf2.setMAC('00:00:00:00:00:12')
@@ -63,15 +58,6 @@ def emptyNet():
 
     gw.cmd('python gw.py gw &')
 
-
-
-    #docker config
-    # call('docker rm -f sf1', shell=True)
-    # call('docker run --name=sf1 -h=sf1 --privileged=true --net=none -v /home/rafael/code/:/nfv -dit 227085dee81b /bin/bash', shell=True)
-    # call('ovs-docker add-port sw2 sf1-eth0 sf1 10.0.0.11/16', shell=True)
-    # call('docker exec sf1 ip link set dev sf1-eth0 down', shell=True)
-    # call('docker exec sf1 ip link set dev sf1-eth0 address 00:00:00:00:00:11', shell=True)
-    # call('docker exec sf1 ip link set dev sf1-eth0 up', shell=True)
 
     CLI( net )
     net.stop()
