@@ -202,7 +202,7 @@ def get_json_SF2():
         "service-function":
             {
                 "name": "SF2",
-                "type": "service-function-type:dpi", #"service-function-type:tcp-proxy", #
+                "type": "service-function-type:dpi",  #"service-function-type:tcp-proxy", #
                 "nsh-aware": "false",
                 "ip-mgmt-address": "10.0.0.2",
                 "sf-data-plane-locator": [
@@ -404,7 +404,7 @@ def get_json_sfc():
                 },
                 {
                     "name": "dpi",
-                    "type": "service-function-type:dpi",
+                    "type": "service-function-type:dpi", #"service-function-type:tcp-proxy", #, # #"
                     "order": "1"
                 }
             ]
