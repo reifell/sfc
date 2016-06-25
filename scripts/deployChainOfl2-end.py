@@ -111,16 +111,16 @@ class SfcOfL2(ConfigBase):
                             }
                         },
                         {
-                            "name": "egress",
+                            "name": "toSFF1", #"name": "egress",
                             "data-plane-locator":
                                 {
                                     "transport": "service-locator:mac",
-                                    "vlan-id": 101,
+                                    "vlan-id": 21,
                                     "mac": "00:00:00:00:00:EE"
                                 },
-                                "service-function-forwarder-ofs:ofs-port":
+                            "service-function-forwarder-ofs:ofs-port":
                                 {
-                                    "port-id": "3"#"1"
+                                    "port-id": "3"  # "1"
                                 }
                         },
                         {
@@ -214,7 +214,7 @@ class SfcOfL2(ConfigBase):
                             "name": "sff3-dpl-1",
                             "data-plane-locator":
                                 {
-                                    "vlan-id": 23,
+                                    "vlan-id": 300,
                                     "mac": "00:00:00:11:11:13",
                                     "transport": "service-locator:mac"
                                 },
@@ -230,12 +230,25 @@ class SfcOfL2(ConfigBase):
                             "data-plane-locator":
                                 {
                                     "transport": "service-locator:mac",
-                                    "vlan-id": 103,
+                                    "vlan-id": 23,
                                     "mac": "33:00:00:00:33:11"
                                 },
                             "service-function-forwarder-ofs:ofs-port":
                                 {
                                     "port-id": "2"  # "1"
+                                }
+                        },
+                        {
+                            "name": "toSFF1",#"name": "egress",
+                            "data-plane-locator":
+                                {
+                                    "transport": "service-locator:mac",
+                                    "vlan-id": 31,
+                                    "mac": "00:00:00:00:00:EE"
+                                },
+                            "service-function-forwarder-ofs:ofs-port":
+                                {
+                                    "port-id": "3"  # "1"
                                 }
                         }
 
@@ -283,19 +296,46 @@ class SfcOfL2(ConfigBase):
                                 "transport": "service-locator:mac"
                             }
                         },
+                        # {
+                        #     "name": "sff1-dpl",
+                        #     "data-plane-locator":
+                        #         {
+                        #             "transport": "service-locator:mac",
+                        #             "vlan-id": 101,
+                        #             "mac": "00:00:00:00:EE:EE"
+                        #         },
+                        #     "service-function-forwarder-ofs:ofs-port":
+                        #         {
+                        #             "port-id": "3"
+                        #         }
+                        # },
                         {
-                            "name": "sff1-dpl",
+                            "name": "toSFF2",  # "name": "egress",
                             "data-plane-locator":
                                 {
                                     "transport": "service-locator:mac",
-                                    "vlan-id": 101,
-                                    "mac": "00:00:00:00:EE:EE"
+                                    "vlan-id": 21,
+                                    "mac": "00:00:00:00:00:EE"
                                 },
                             "service-function-forwarder-ofs:ofs-port":
                                 {
-                                    "port-id": "3"
+                                    "port-id": "3"  # "1"
+                                }
+                        },
+                        {
+                            "name": "toSFF3",  # "name": "egress",
+                            "data-plane-locator":
+                                {
+                                    "transport": "service-locator:mac",
+                                    "vlan-id": 31,
+                                    "mac": "00:00:00:00:00:EE"
+                                },
+                            "service-function-forwarder-ofs:ofs-port":
+                                {
+                                    "port-id": "4"  # "1"
                                 }
                         }
+
                     ],
                 }
         }
@@ -454,7 +494,7 @@ class SfcOfL2(ConfigBase):
             "service-function-classifier":
                 {
                     "name": "classifier1",
-                    "access-list": "acl1",
+                    #"access-list": "acl1",
                     "scl-service-function-forwarder": [
                         {
                             "name": "SFF1",
@@ -493,6 +533,8 @@ if __name__ == "__main__":
     if deploy.deleteAll is True:
         print "delete all ", deploy.deleteAll
         deploy.deleteAllFlows(deploy.controller, deploy.DEFAULT_PORT, "openflow:2")
+        deploy.deleteAllFlows(deploy.controller, deploy.DEFAULT_PORT, "openflow:3")
+
     else:
         deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_RENDERED_PATH_DEL, deploy.get_json_rend_del(), True)
         deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_RENDERED_PATH_DEL, deploy.get_json_rend_reverse_del(), True)
@@ -500,10 +542,14 @@ if __name__ == "__main__":
         deploy.delete(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_FUNCTION_CHAIN, True)
         deploy.delete(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_FUNCTION_FORWARDER, True)
         deploy.delete(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_FUNCTION, True)
+        deploy.delete(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_CLASSIFICATION_FUNTION, True)
+
     call("ovs-ofctl -OOpenFlow13 del-flows sw1 udp,nw_dst=10.0.0.2", shell=True)
     call("ovs-ofctl -OOpenFlow13 del-flows sw1 ip", shell=True)
     deploy.getAndDel(deploy.controller, deploy.DEFAULT_PORT, "openflow:1", 0)
     deploy.delRemainingVlanId(deploy.controller, deploy.DEFAULT_PORT, "openflow:2", 2)
+    deploy.delRemainingVlanId(deploy.controller, deploy.DEFAULT_PORT, "openflow:3", 2)
+
 
     print "============== All SFC configuration erased =============="
     time.sleep(2)
@@ -516,25 +562,33 @@ if __name__ == "__main__":
     deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_FUNCTION_FORWARDER, deploy.get_json_SSF2(), True)
     deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_FUNCTION_FORWARDER, deploy.get_json_SSF3(), True)
 
-    deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_FUNCTION_CHAIN, deploy.get_json_sfc(), True)
+    deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_FUNCTION_CHAIN, deploy.get_json_sfc2(), True)
     deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_FUNCTION_PATH, deploy.get_json_sfp(), True)
     #post(controller, DEFAULT_PORT, ACCESS_CONTROL_LIST, get_json_acl(), True)
     #post(controller, DEFAULT_PORT, ACCESS_CONTROL_LIST, get_json_acl2(), True)
+    deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_CLASSIFICATION_FUNTION, deploy.get_json_scf(), True)
+
+
     deploy.post(deploy.controller, deploy.DEFAULT_PORT, deploy.SERVICE_RENDERED_PATH, deploy.get_json_rend(), True)
-    #post(controller, DEFAULT_PORT, SERVICE_CLASSIFICATION_FUNTION, get_json_scf(), True)
     #post(controller, DEFAULT_PORT, SERVICE_CLASSIFICATION_FUNTION, get_json_scf2(), True)
 
+    # call("ovs-ofctl -OOpenFlow13 add-flow sw2 priority=1002,dl_src=00:00:00:00:00:ee,actions=output:3", shell=True)
 
     #configure cassifier
     vlanId = deploy.getVlanId(deploy.controller, deploy.DEFAULT_PORT, "openflow:2", 2)
     call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=1000,udp,nw_dst=10.0.0.2,actions=mod_vlan_vid:" + str(vlanId) + ",output:3", shell=True)
-    call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=1001,ip,dl_vlan=" + str(vlanId +1)+ ",actions=output:4", shell=True)
+    call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=1001,ip,dl_vlan=" + str(vlanId +2)+ ",actions=output:5", shell=True)
     call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=1002,dl_src=00:00:00:00:00:fe,actions=normal", shell=True)
     call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=99,actions=normal", shell=True)
 
     #bidirecional
-    call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=1000,udp,nw_dst=10.0.0.1,actions=mod_vlan_vid:" + str(vlanId + 100) + ",output:3", shell=True)
-    call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=1001,ip,dl_vlan=" + str(vlanId + 101) + ",actions=output:4", shell=True)
+    call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=1000,udp,nw_dst=10.0.0.1,actions=mod_vlan_vid:" + str(vlanId + 100) + ",output:4", shell=True)
+    call("ovs-ofctl -OOpenFlow13 add-flow sw1 priority=1001,ip,dl_vlan=" + str(vlanId + 102) + ",actions=output:5", shell=True)
+
+    # call("ovs-ofctl -OOpenFlow13 add-flow sw2 priority=1001,ip,dl_vlan=" + str(vlanId + 2) + ",actions=output:3", shell=True)
+    # call("ovs-ofctl -OOpenFlow13 add-flow sw2 priority=1001,ip,dl_vlan=" + str(vlanId + 102) + ",actions=output:3", shell=True)
+
+
 
 
 

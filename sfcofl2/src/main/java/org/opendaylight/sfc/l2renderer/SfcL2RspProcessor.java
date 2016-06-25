@@ -182,7 +182,15 @@ public class SfcL2RspProcessor {
             SffName curSffName = rspHop.getServiceFunctionForwarder();
             sfName = rspHop.getServiceFunctionName();
             sfgName = rspHop.getServiceFunctionGroupName();
-
+            if (prevSffName!= null)
+                LOG.info(" srcSffName: {}",prevSffName.toString());
+            if (sfName!= null)
+                LOG.info(" sfName: {}",sfName.toString());
+            if (sfgName!= null)
+                LOG.info(" sfgName: {}",sfgName.toString());
+            if (curSffName!= null)
+                LOG.info(" dstSffName: {}",curSffName.toString());
+            LOG.info(" -------");
             entry = sffGraph.addGraphEntry(prevSffName, curSffName, sfName, sfgName, rsp.getPathId(),
                     rspHop.getServiceIndex());
             entry.setPrevSf(prevSfName);
@@ -192,6 +200,16 @@ public class SfcL2RspProcessor {
         }
         // Add the final connection, which will be the RSP Egress
         // Using the previous sfName as the SrcSf
+
+        if (prevSffName!= null)
+            LOG.info(" srcSffName: {}",prevSffName.toString());
+        if (sfName!= null)
+            LOG.info(" sfName: {}",sfName.toString());
+        if (sfgName!= null)
+            LOG.info(" sfgName: {}",sfgName.toString());
+        LOG.info(" dstSffName: end");
+        LOG.info(" -------");
+
         entry = sffGraph.addGraphEntry(prevSffName, SffGraph.EGRESS, sfName, sfgName, rsp.getPathId(),
                 (short) (lastServiceIndex - 1));
         entry.setPrevSf(prevSfName);
@@ -371,8 +389,14 @@ public class SfcL2RspProcessor {
         if (! entry.getSrcSff().getValue().equals(entry.getDstSff().getValue())) {
             SffDataPlaneLocator sffDstIngressDpl = sfcL2ProviderUtils.getSffDataPlaneLocator(sffDst,
                     sffGraph.getSffIngressDpl(entry.getDstSff(), entry.getPathId()));
+
+            SffDataPlaneLocatorName name = sffGraph.getSffEgressDpl(entry.getSrcSff(), entry.getPathId());
+            LOG.info ("graff : {}", sffGraph.toString());
+            LOG.info ("path egress graff : {}", sffGraph.getPathEgressDpl(entry.getPathId()));
+            LOG.info ("in graf : {}", sffGraph.getSffIngressDpl(entry.getSrcSff(), entry.getPathId()).toString());
+            LOG.info ("out graf : {}", name.toString());
             SffDataPlaneLocator sffSrcEgressDpl = sfcL2ProviderUtils.getSffDataPlaneLocator(sffSrc,
-                    sffGraph.getSffEgressDpl(entry.getSrcSff(), entry.getPathId()));
+                    name);
             // This is the HOP DPL details between srcSFF and dstSFF, for example: VLAN ID 100
             DataPlaneLocator dstHopIngressDpl = sffGraph.getHopIngressDpl(entry.getDstSff(), entry.getPathId());
             transportProcessor.configureSffTransportEgressFlow(

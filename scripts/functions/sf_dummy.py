@@ -7,6 +7,7 @@ from subprocess import call
 print 'starting service function ...'
 tag = sys.argv[1]
 interface = sys.argv[2]
+vlanTag = sys.argv[3]
 print 'tag = ' + tag
 # call('iptables -F', shell=True)
 # call('iptables -I INPUT -p udp -i sf1-eth0 -j DROP', shell=True)
@@ -26,7 +27,7 @@ def udp_incoming(pkt):
 def send_pkt(pkt, sf_tag):
     e, i, u, d = pkt, pkt['IP'], pkt['UDP'], pkt['Raw']
     pkt['Raw'] = Raw(load=str(d).strip()+','+sf_tag)
-    p = Ether(src=e.dst, dst=e.src)/Dot1Q(vlan=100)/i  # IP(src=i.src,dst=i.dst,tos=68)/UDP(sport=u.sport,dport=u.dport)/Raw(load=str(d)+','+tag) #/Dot1Q(vlan=1000)
+    p = Ether(src=e.dst, dst=e.src)/Dot1Q(vlan=int(vlanTag))/i  # IP(src=i.src,dst=i.dst,tos=68)/UDP(sport=u.sport,dport=u.dport)/Raw(load=str(d)+','+tag) #/Dot1Q(vlan=1000)
     print "Output:"
     p.show()
     sendp(p, iface=interface)
@@ -34,7 +35,7 @@ def send_pkt(pkt, sf_tag):
 
 
 def send_pkt_dummy():
-    p = Ether(src='00:00:00:00:00:11', dst='00:00:00:00:11:11') / Dot1Q(vlan=100) / IP(src='10.0.0.1', dst='10.0.0.2',
+    p = Ether(src='00:00:00:00:00:11', dst='00:00:00:00:11:11') / Dot1Q(vlan=int(vlanTag)) / IP(src='10.0.0.1', dst='10.0.0.2',
                                                                                        tos=32) / UDP(sport=1000,
                                                                                                      dport=20000) / Raw()  # /Dot1Q(vlan=1000)
     print "Output:"

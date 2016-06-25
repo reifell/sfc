@@ -11,7 +11,15 @@ package org.opendaylight.sfc.l2renderer;
 import java.util.Iterator;
 import java.util.List;
 
+import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
+import org.opendaylight.sfc.provider.api.SfcDataStoreAPI;
+import org.opendaylight.sfc.provider.api.SfcProviderServiceForwarderAPI;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffDataPlaneLocatorName;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffName;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.scf.rev140701.ServiceFunctionClassifiers;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.scf.rev140701.service.function.classifiers.ServiceFunctionClassifier;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.scf.rev140701.service.function.classifiers.service.function.classifier.SclServiceFunctionForwarder;
+import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,10 +184,10 @@ public abstract class SfcRspTransportProcessorBase {
             this.sffGraph.setSffEgressDpl(sff.getName(), pathId, sffDplList.get(0).getName());
             return true;
         }
-        SffDataPlaneLocatorName egreesName = null;
+        SffDataPlaneLocatorName egreesNameDpl = null;
         for (SffDataPlaneLocator egreessdpl : sffDplList) {
             if (egreessdpl.getName().getValue().equals("egress")) {
-                egreesName = egreessdpl.getName();
+                egreesNameDpl = egreessdpl.getName();
                 continue;
             }
         }
@@ -193,10 +201,20 @@ public abstract class SfcRspTransportProcessorBase {
                 if (ingressDplSet) {
                     // the SFF ingressDpl was already set, so we need to set the egress
                     SffDataPlaneLocatorName egrees = sffDpl.getName();
-                    if (egreesName != null) {
-                        egrees = egreesName;
+                    // if there is a dpl on classifier equals to (trsnport and vlanId) a dpl from sff it is the egrees of the chain
+                    List<SffDataPlaneLocator> sffDpls = SfcProviderServiceForwarderAPI.readServiceFunctionForwarderDataPlaneLocators(sff.getName());
+                    if ( sffDpls != null) {
+                        for (SffDataPlaneLocator dpl : sffDpls) {
+                            SffDataPlaneLocatorName egreesDpl =  searchDplOnClassifier(dpl,rspTransport);
+                            if (egreesDpl != null) {
+                                egrees = egreesDpl;
+                            }
+                        }
                     }
-                    this.sffGraph.setSffEgressDpl(sff.getName(), pathId, egrees );
+                    if (egreesNameDpl != null) {
+                        egrees = egreesNameDpl;
+                    }
+                    this.sffGraph.setSffEgressDpl(sff.getName(), pathId, egrees);
                 } else {
                     this.sffGraph.setSffIngressDpl(sff.getName(), pathId, sffDpl.getName());
                 }
@@ -206,6 +224,36 @@ public abstract class SfcRspTransportProcessorBase {
         }
 
         return false;
+    }
+
+     SffDataPlaneLocatorName searchDplOnClassifier(SffDataPlaneLocator prevSffDpl, String rspTransport) {
+        InstanceIdentifier<ServiceFunctionClassifiers> sfcIID =
+                InstanceIdentifier.create(ServiceFunctionClassifiers.class);
+        ServiceFunctionClassifiers scfs = SfcDataStoreAPI.readTransactionAPI(sfcIID, LogicalDatastoreType.CONFIGURATION);
+        for (ServiceFunctionClassifier scf : scfs.getServiceFunctionClassifier()) {
+            List<SclServiceFunctionForwarder> scfList = scf.getSclServiceFunctionForwarder();
+            for(SclServiceFunctionForwarder scfsff : scfList) {
+                SffName sffName = new SffName(scfsff.getName());
+                ServiceFunctionForwarder egressSFF = SfcProviderServiceForwarderAPI.readServiceFunctionForwarder(sffName);
+                for (SffDataPlaneLocator egressDpls : egressSFF.getSffDataPlaneLocator()) {
+                    if (!egressDpls.getDataPlaneLocator().getTransport().getName().equals(rspTransport)) {
+                        // Only check the transport types that the RSP uses
+                        continue;
+                    }
+                    LocatorType prevLocatorType = prevSffDpl.getDataPlaneLocator().getLocatorType();
+                    LocatorType curLocatorType = egressDpls.getDataPlaneLocator().getLocatorType();
+                    LOG.debug("comparing prev locator [{}] : [{}] to [{}] : [{}]", prevSffDpl.getName(), prevLocatorType,
+                            egressDpls.getName(), curLocatorType);
+                    if (prevLocatorType != null && curLocatorType != null) {
+                        if (compareLocatorTypes(prevLocatorType, curLocatorType)) {
+                            SffDataPlaneLocatorName egreesName = prevSffDpl.getName();
+                            return egreesName;
+                        }
+                    }
+                }
+            }
+        }
+         return null;
     }
 
     /**

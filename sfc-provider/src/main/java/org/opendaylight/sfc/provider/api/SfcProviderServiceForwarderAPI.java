@@ -100,6 +100,18 @@ public class SfcProviderServiceForwarderAPI {
         return null;
     }
 
+
+    public static List<SffDataPlaneLocator> readServiceFunctionForwarderDataPlaneLocators(SffName sffName) {
+        ServiceFunctionForwarder serviceFunctionForwarder = readServiceFunctionForwarder(sffName);
+        if (serviceFunctionForwarder != null) {
+             return serviceFunctionForwarder.getSffDataPlaneLocator();
+
+        } else {
+            LOG.error("{}: Failed to read SFF: {}", Thread.currentThread().getStackTrace()[1], sffName);
+        }
+        return null;
+    }
+
     /**
      * This method reads a SFF from the datastore
      * <p>

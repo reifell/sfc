@@ -63,7 +63,7 @@ public class SfcScfOfDataListener implements DataChangeListener, AutoCloseable {
         for (Map.Entry<InstanceIdentifier<?>, DataObject> entry : dataCreatedObject.entrySet()) {
             if (entry.getValue() instanceof ServiceFunctionClassifier) {
                 ServiceFunctionClassifier scf = (ServiceFunctionClassifier) entry.getValue();
-                LOG.debug("Created ServiceFunctionClassifier name: {}\n", scf.getName());
+                LOG.debug("Created ServiceFunctionClassif   ier name: {}\n", scf.getName());
                 this.sfcScfProcessor.createdServiceFunctionClassifier(scf);
             }
         }

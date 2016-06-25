@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     sfc.net.addLink(sw1, sw2)
     sfc.net.addLink(sw2, sw3)
-    sfc.net.addLink(sw2, sw4)
+    sfc.net.addLink(sw3, sw1)
 
     sfc.addGw(sw1)
 

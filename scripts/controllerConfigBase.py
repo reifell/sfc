@@ -38,9 +38,9 @@ class ConfigBase:
         url = 'http://' + host + ":" + port + uri
         r = requests.get(url, auth=HTTPBasicAuth(self.USERNAME, self.PASSWORD))
         jsondata = json.loads(r.text)
-        pprint(jsondata)
-        import pdb
-        pdb.set_trace()
+        #pprint(jsondata)
+        #import pdb
+        #pdb.set_trace()
         print jsondata
         return jsondata
 

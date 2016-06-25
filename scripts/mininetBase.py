@@ -34,14 +34,16 @@ class sfc():
 
     def addSf(self, num, sw):
         sf = self.net.addHost("sf%s" % (num))
-        self.net.addLink(sf, sw)
-
+        link = self.net.addLink(sf, sw)
         sfConf = {}
         sfConf[sf] = {}
         sfConf[sf]['IP'] = '10.0.0.1%s' % (num)
         sfConf[sf]['MAC'] = '00:00:00:00:00:1%s' % (num)
-        sfConf[sf]['CMD'] = 'python ./functions/sf_dummy.py sf%s sf%s-eth0 &'% (num, num)
+        tag = 300 + int(num)
+        sfConf[sf]['CMD'] = 'python ./functions/sf_dummy.py sf%s sf%s-eth0 %s &'% (num, num, str(tag))
         self.callBackConfs['sf'].append(sfConf)
+        print sf.name
+        print link.intf2
         return sf
 
 
@@ -68,6 +70,8 @@ class sfc():
             for hostTopo, conf in host.iteritems():
                 hostTopo.setIP(conf['IP'])
                 hostTopo.setMAC(conf['MAC'])
+                if hostTopo.name == 'h2':
+                    hostTopo.cmd('python ./functions/server.py 10.0.0.1 h2-eth0 &')
 
     def deploySfConf(self):
         for sf in self.callBackConfs['sf']:
