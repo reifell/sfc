@@ -10,7 +10,9 @@ package org.opendaylight.monitor.provider.provider;
 
 import org.opendaylight.controller.sal.binding.api.NotificationProviderService;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
+import org.opendaylight.controller.sal.binding.api.RpcProviderRegistry;
 import org.opendaylight.monitor.provider.packetHandler.PacketInListener;
+import org.opendaylight.monitor.provider.packetHandler.PacketOutSender;
 import org.opendaylight.yangtools.concepts.Registration;
 
 import java.util.concurrent.ExecutionException;
@@ -34,14 +36,17 @@ public class MonitorProvider implements AutoCloseable {
     ForwarderFlowListner ForwarderFlowListner = null;
     NotificationProviderService notificationService = null;
     PacketInListener packetInListener = null;
+    PacketOutSender packetOutSender = null;
 
-    public MonitorProvider(DataBroker dataBroker, NotificationProviderService notificationService) {
+    public MonitorProvider(DataBroker dataBroker, NotificationProviderService notificationService, RpcProviderRegistry rpcProvider) {
         LOG.info("MonitorProvider starting the MonitorProvider plugin...");
 
         this.notificationService = notificationService;
         this.flowListner = new FlowListner(dataBroker);
         this.ForwarderFlowListner = new ForwarderFlowListner(dataBroker);
         this.packetInListener =  new PacketInListener(notificationService);
+        this.packetOutSender = new PacketOutSender(rpcProvider);
+        this.packetOutSender.init();
 
         //this.pktInRegistration = notificationService.registerNotificationListener(null);
 
@@ -61,6 +66,9 @@ public class MonitorProvider implements AutoCloseable {
             }
             if (packetInListener != null) {
                 packetInListener.close();
+            }
+            if (packetOutSender != null) {
+                packetOutSender.close();
             }
 
         } catch(Exception e) {

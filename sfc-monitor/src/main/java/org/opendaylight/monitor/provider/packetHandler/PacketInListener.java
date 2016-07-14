@@ -57,6 +57,9 @@ public class PacketInListener implements PacketProcessingListener {
     public static final BigInteger EGRESS_PROBE_COOKIE =
             new BigInteger("FF22FF", COOKIE_BIGINT_HEX_RADIX);
 
+    public static final BigInteger CALIBRATION_PACKET =
+            new BigInteger("FF33FF", COOKIE_BIGINT_HEX_RADIX);
+
     private static final int SCHEDULED_THREAD_POOL_SIZE = 1;
     private static final int QUEUE_SIZE = 1000;
     private static final int ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS = 300;
@@ -80,7 +83,9 @@ public class PacketInListener implements PacketProcessingListener {
         this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, SCHEDULED_THREAD_POOL_SIZE,
                 ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(QUEUE_SIZE));
-        notificationProviderService.registerNotificationListener(this);    }
+
+        notificationProviderService.registerNotificationListener(this);
+    }
 
     @Override
     public void onPacketReceived(PacketReceived packetReceived) {
@@ -90,17 +95,27 @@ public class PacketInListener implements PacketProcessingListener {
         }
         BigInteger cookie = packetReceived.getFlowCookie().getValue();
         // Make sure the PacketIn is due to our Classification table pktInAction
-        if(!cookie.equals(INGRESS_PROBE_COOKIE) && !cookie.equals(EGRESS_PROBE_COOKIE)) {
-            LOG.info("PacketInListener discarding packet by Flow Cookie");
-            return;
+        if(cookie.equals(INGRESS_PROBE_COOKIE) || cookie.equals(EGRESS_PROBE_COOKIE)) {
+            ProcessPaketIn processPaketIn = new ProcessPaketIn(packetReceived, intime);
+            try {
+                threadPoolExecutorService.execute(processPaketIn);
+            } catch (Exception ex) {
+                LOG.error("error trying to configure SFC monitor rule", ex.toString());
+            }
+
+        } else if(cookie.equals(CALIBRATION_PACKET)) {
+
+            final String nodeName =
+                    packetReceived.getIngress()
+                            .getValue()
+                            .firstKeyOf(Node.class, NodeKey.class)
+                            .getId().getValue();
+
+            LOG.info("get packet {}  {}", nodeName. toString(), intime);
+
         }
 
-        ProcessPaketIn processPaketIn = new ProcessPaketIn(packetReceived, intime);
-        try {
-            threadPoolExecutorService.execute(processPaketIn);
-        } catch (Exception ex) {
-            LOG.error("error trying to configure SFC monitor rule", ex.toString());
-        }
+
 
     }
 
@@ -188,7 +203,7 @@ public class PacketInListener implements PacketProcessingListener {
 
 
     /**
-     * A thread class used to write the flows to the data store.
+     * A thread class used to detect pp and generate a SFC trace
      */
     class ProcessPaketIn implements Runnable {
 
@@ -206,7 +221,6 @@ public class PacketInListener implements PacketProcessingListener {
             if (packetReceived.getFlowCookie().getValue().equals(EGRESS_PROBE_COOKIE)) {
                 packetDirec = "OUT";
             }
-            // TODO figure out how to get the IDataPacketService which will parse the packet for us
 
             final byte[] rawPacketOrig = packetReceived.getPayload();
             int eth = getEtherType(rawPacketOrig);
@@ -229,7 +243,8 @@ public class PacketInListener implements PacketProcessingListener {
             if (getEcn(rawPacket) != IS_PROBE_PACKET) {
                 return;
             }
-            LOG.info(" ----------- Probe pakcet {} [ECN {}] ------------- {}", packetDirec, getEcn(rawPacket), packetReceived.getMatch().toString());
+
+            //LOG.info(" ----------- Probe pakcet {} [ECN {}] ------------- {}", packetDirec, getEcn(rawPacket), packetReceived.getMatch().toString());
 
 
             // Get the SrcIp and DstIp Addresses
@@ -262,8 +277,8 @@ public class PacketInListener implements PacketProcessingListener {
                 // Assuming the RSP is symmetric
                 short dlPathId = (short) (ulPathId + 1);
 
-                LOG.info("++++ PacketInListener Src IP [{}] Dst IP [{}] ulPathId [{}] dlPathId [{}]",
-                        pktSrcIpStr, pktDstIpStr, ulPathId, dlPathId);
+                //LOG.info("++++ PacketInListener Src IP [{}] Dst IP [{}] ulPathId [{}] dlPathId [{}]",
+                //        pktSrcIpStr, pktDstIpStr, ulPathId, dlPathId);
             }
             // Get the Node name, by getting the following
             // - Ingress nodeConnectorRef
@@ -284,7 +299,7 @@ public class PacketInListener implements PacketProcessingListener {
             TopologyHandler topo = new TopologyHandler();
 
 
-            LOG.info("+++++ packet {} time [{}]", packetDirec, inTime);
+            //LOG.info("+++++ packet {} time [{}]", packetDirec, inTime);
 
             //LOG.info("+++++ NodeName [{}] => {}", nodeName, nodeConector.getValue());
             TerminationPoint tp = topo.readTerminationPoint(nodeName, nodeConector.getValue());
@@ -299,19 +314,22 @@ public class PacketInListener implements PacketProcessingListener {
 
 
             String parts[] = tp.getTpId().getValue().split(":");
+            LOG.info("connected tp {}", tp.getTpId().getValue());
             String sfDpl = topo.readSfDplFromSff(sff, parts[2]);
             ServiceFunction sf = null;
-            if (sfDpl == null ) {
-                LOG.error("could no find SF dpl from port {}", parts[2]);
-            } else if (!sfDpl.equals("egress") ) {
+            if (sfDpl != null ) {
                 sf = topo.readSfName(sfDpl);
+                if (sf != null) {
+                    LOG.info("SF [{}]", sf.getName().getValue());
+                } else {
+                    LOG.error("could no find SF in the dpl {}", sfDpl);
+                }
+            } else {  //if (!sfDpl.equals("egress") )
+
+
             }
 
-            if (sf != null) {
-                sfDpl = sf.getName().getValue();
-            }
 
-            LOG.info("SF [{}]", sfDpl);
             LOG.info("SFF [{}]", sff.getName().getValue());
 
         }

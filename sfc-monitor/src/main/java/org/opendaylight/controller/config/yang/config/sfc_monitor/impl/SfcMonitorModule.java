@@ -27,7 +27,12 @@ public class SfcMonitorModule extends org.opendaylight.controller.config.yang.co
 
 //        NotificationProviderService notificationService = getNotificationServiceDependency();
 
-        final MonitorProvider monitorProvider = new MonitorProvider(getDataBrokerDependency(), getNotificationServiceDependency());
+        //final PacketOutSender packetOutSender = new PacketOutSender(getRpcRegistryDependency());
+
+
+
+        final MonitorProvider monitorProvider = new MonitorProvider(getDataBrokerDependency(), getNotificationServiceDependency(), getRpcRegistryDependency());
+
 
         java.lang.AutoCloseable ret = new java.lang.AutoCloseable() {
             @Override

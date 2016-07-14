@@ -48,8 +48,12 @@ public class TopologyHandler {
 
 
     private final InstanceIdentifier<NetworkTopology> networkII
-
             = InstanceIdentifier.builder(NetworkTopology.class).build();
+
+    InstanceIdentifier<ServiceFunctionForwarders> sffIID =
+            InstanceIdentifier.create(ServiceFunctionForwarders.class);
+
+
 
     public InstanceIdentifier<Topology> getTopologyII() throws ExecutionException, InterruptedException {
 
@@ -87,8 +91,6 @@ public class TopologyHandler {
 
     public ServiceFunctionForwarder readSFF(String bridgeName) {
 
-        InstanceIdentifier<ServiceFunctionForwarders> sffIID =
-                InstanceIdentifier.create(ServiceFunctionForwarders.class);
 //
 //        InstanceIdentifier<ServiceFunctionForwarders> sffIID =
 //                InstanceIdentifier.create(ServiceFunctionForwarders.class).child(ServiceNode.class, new ServiceNodeKey(new SnName("" )));
@@ -127,6 +129,10 @@ public class TopologyHandler {
             }
         }
         return sfDpl;
+    }
+
+    public ServiceFunctionForwarders readAllSFFs() {
+            return SfcDataStoreAPI.readTransactionAPI(sffIID, LogicalDatastoreType.CONFIGURATION);
     }
 
     public ServiceFunction readSfName(String dpl) {
