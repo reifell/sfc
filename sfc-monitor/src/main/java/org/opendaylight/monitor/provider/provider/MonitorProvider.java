@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2014 Ericsson India Global Services Pvt Ltd. and others.  All rights reserved.
+/*
+ * Copyright (c) 2016 Rafael Eichelberger, Inc. and others.  All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
@@ -44,11 +44,10 @@ public class MonitorProvider implements AutoCloseable {
         this.notificationService = notificationService;
         this.flowListner = new FlowListner(dataBroker);
         this.ForwarderFlowListner = new ForwarderFlowListner(dataBroker);
-        this.packetInListener =  new PacketInListener(notificationService);
         this.packetOutSender = new PacketOutSender(rpcProvider);
-        this.packetOutSender.init();
+        this.packetInListener =  new PacketInListener(notificationService, packetOutSender);
 
-        //this.pktInRegistration = notificationService.registerNotificationListener(null);
+        //this.packetOutSender.init();
 
         LOG.info("MonitorProvider successfully started the MonitorProvider plugin");
     }

@@ -51,7 +51,10 @@ class sfc():
         sw = self.net.addSwitch('sw%s' %(num))
         swConf = {}
         swConf[sw] = {}
-        swConf[sw]['CMD'] = 'ovs-vsctl set bridge sw%s protocols=OpenFlow13'%(num)
+        swConf[sw]['CMD'] = []
+        swConf[sw]['CMD'].append('ovs-vsctl set bridge sw%s protocols=OpenFlow13'%(num))
+        swConf[sw]['CMD'].append('ovs-ofctl -OOpenFlow13 add-flow sw%s cookie=0xFF22FF,table=11,priority=760,ip,ip_ecn=3,actions=CONTROLLER'%(num))
+        swConf[sw]['CMD'].append('ovs-ofctl -OOpenFlow13 add-flow sw%s cookie=0xFF44FF,table=11,priority=760,ip,ip_ecn=2,actions=CONTROLLER'%(num))
         self.callBackConfs['sw'].append(swConf)
         return sw
 
@@ -83,7 +86,8 @@ class sfc():
     def deploySwConf(self):
         for sw in self.callBackConfs['sw']:
             for swTopo, conf in sw.iteritems():
-                call(conf['CMD'], shell=True)
+                for cmd in conf['CMD']:
+                    call(cmd, shell=True)
 
 
 

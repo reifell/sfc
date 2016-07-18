@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Cisco Systems, Inc. and others.  All rights reserved.
+ * Copyright (c) 2016 Rafael Eichelberger, Inc. and others.  All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
@@ -61,20 +61,17 @@ public class PacketOutSender {
 
     public PacketOutSender(RpcProviderRegistry rpcProvider) {
         rpc = rpcProvider.getRpcService(PacketProcessingService.class);
-
-        this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, SCHEDULED_THREAD_POOL_SIZE,
-                ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<Runnable>(QUEUE_SIZE));
-
-
     }
 
     public void init () {
+        this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, SCHEDULED_THREAD_POOL_SIZE,
+                ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>(QUEUE_SIZE));
         sender sender_ = new sender(10);
         threadPoolExecutorService.execute(sender_);
     }
 
-    public void test() {
+    public void sendCalibrationPacket() {
         String sendSw = null;
 
         ServiceFunctionForwarders sffs = topo.readAllSFFs();
@@ -100,9 +97,6 @@ public class PacketOutSender {
                     InstanceIdentifier<NodeConnector> NodeConII = InstanceIdentifier.builder(Nodes.class)
                             .child(Node.class, nodeBuilder.getKey()).child(NodeConnector.class, nodeConBuilder.getKey()).build();
 
-                    // Node sffNode = SfcDataStoreAPI.readTransactionAPI(NodeII, LogicalDatastoreType.OPERATIONAL);
-                    // if (sffNode != null) {
-                    //     LOG.info("Sff node {} ", sffNode.getKey().getId().getValue());
 
                     // arp request arp_tpa=100.0.0.101
                     byte[] data = new byte[]{-1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 1, 8, 6, 0, 1, 8, 0, 6, 4, 0, 1, 0,
@@ -110,15 +104,34 @@ public class PacketOutSender {
 
                     LOG.info("pakcet sent {} time {}", sendSw, System.currentTimeMillis());
 
-                    sendPacket(NodeII, NodeConII, data);
-                    // }
+                    sendPacketToTable(NodeII, NodeConII, data);
                 }
             }
         } else {
             LOG.info("no SFF detected ");
         }
 
+    }
 
+    public void sendPacketToPort(String switchNode, String port, byte[] payload) {
+        String nodeContertor = String.format("%s:%s", switchNode, port);
+        LOG.info("Send pakcet {} {} ", switchNode, nodeContertor);
+        NodeBuilder nodeBuilder = new NodeBuilder();
+        nodeBuilder.setId(new org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.NodeId(switchNode));
+        nodeBuilder.setKey(new NodeKey(nodeBuilder.getId()));
+
+        InstanceIdentifier<Node> NodeII = InstanceIdentifier.builder(Nodes.class)
+                .child(Node.class, nodeBuilder.getKey()).build();
+
+        NodeConnectorBuilder nodeConBuilder = new NodeConnectorBuilder();
+        nodeConBuilder.setId(new NodeConnectorId(nodeContertor));
+        nodeConBuilder.setKey(new NodeConnectorKey(nodeConBuilder.getId()));
+
+        InstanceIdentifier<NodeConnector> NodeConII = InstanceIdentifier.builder(Nodes.class)
+                .child(Node.class, nodeBuilder.getKey()).child(NodeConnector.class, nodeConBuilder.getKey()).build();
+
+
+        sendPacket(NodeII, NodeConII, payload);
     }
 
     /**
@@ -127,7 +140,7 @@ public class PacketOutSender {
      * @param ncIID Node connector (ouput port)
      * @param data packet to transmit
      */
-    public void sendPacket(InstanceIdentifier<Node> nodeIID,
+    public void sendPacketToTable(InstanceIdentifier<Node> nodeIID,
                             InstanceIdentifier<NodeConnector> ncIID,
                             byte[] data) {
 
@@ -149,6 +162,26 @@ public class PacketOutSender {
         txBuilder.setPayload(data)
                 .setNode(new NodeRef(nodeIID))
                 .setAction(actionList)
+                .setEgress(new NodeConnectorRef(ncIID));
+
+        rpc.transmitPacket(txBuilder.build());
+
+    }
+
+    /**
+     * This method sends the packet on given output port
+     * @param nodeIID SwithID
+     * @param ncIID Node connector (ouput port)
+     * @param data packet to transmit
+     */
+    public void sendPacket(InstanceIdentifier<Node> nodeIID,
+                                  InstanceIdentifier<NodeConnector> ncIID,
+                                  byte[] data) {
+
+        TransmitPacketInputBuilder txBuilder = new TransmitPacketInputBuilder();
+
+        txBuilder.setPayload(data)
+                .setNode(new NodeRef(nodeIID))
                 .setEgress(new NodeConnectorRef(ncIID));
 
         rpc.transmitPacket(txBuilder.build());
@@ -178,7 +211,7 @@ public class PacketOutSender {
         public void run() {
             while (!close) {
                 LOG.info("send calibration packet");
-                test();
+                sendCalibrationPacket();
                 try {
                     TimeUnit.SECONDS.sleep(inTime);
                 } catch (InterruptedException e) {
