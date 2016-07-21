@@ -7,11 +7,10 @@
  */
 package org.opendaylight.monitor.provider.packetHandler;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import org.opendaylight.controller.sal.binding.api.NotificationProviderService;
 
 import org.opendaylight.monitor.provider.packetHandler.utils.TopologyHandler;
+import org.opendaylight.monitor.provider.packetHandler.utils.TraceElement;
 import org.opendaylight.monitor.provider.packetHandler.utils.TraceWriter;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunction;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
@@ -54,10 +53,10 @@ public class PacketInListener implements PacketProcessingListener {
     private final static short ECN_MASK = 3;
 
     public static final int COOKIE_BIGINT_HEX_RADIX = 16;
-    public static final BigInteger INGRESS_PROBE_COOKIE =
+    public static final BigInteger TRACE_INGRESS_PROBE_COOKIE =
             new BigInteger("FF11FF", COOKIE_BIGINT_HEX_RADIX);
 
-    public static final BigInteger EGRESS_PROBE_COOKIE =
+    public static final BigInteger TRACE_EGRESS_PROBE_COOKIE =
             new BigInteger("FF22FF", COOKIE_BIGINT_HEX_RADIX);
 
     public static final BigInteger CALIBRATION_PACKET =
@@ -81,7 +80,13 @@ public class PacketInListener implements PacketProcessingListener {
 
     ThreadPoolExecutor threadPoolExecutorService = null;
 
-    private Multimap<String, BigInteger> traceOut = ArrayListMultimap.create();
+    long timeFromFirstElement = 0;
+
+    long timeFromLastTrace = 0;
+
+    int chainUnity = 0;
+
+    private List<TraceElement> traceOut = new ArrayList<>();
 
 
     public void close() throws ExecutionException, InterruptedException {
@@ -121,7 +126,7 @@ public class PacketInListener implements PacketProcessingListener {
         }
         BigInteger cookie = packetReceived.getFlowCookie().getValue();
         // Make sure the PacketIn is due to our Classification table pktInAction
-        if (cookie.equals(INGRESS_PROBE_COOKIE) || cookie.equals(EGRESS_PROBE_COOKIE) || cookie.equals(TRACE_FULL_COKIE)) {
+        if (cookie.equals(TRACE_INGRESS_PROBE_COOKIE) || cookie.equals(TRACE_EGRESS_PROBE_COOKIE) || cookie.equals(TRACE_FULL_COKIE)) {
             ProcessPaketIn processPaketIn = new ProcessPaketIn(packetReceived, intime);
             try {
                 threadPoolExecutorService.execute(processPaketIn);
@@ -224,6 +229,10 @@ public class PacketInListener implements PacketProcessingListener {
         return ecn;
     }
 
+    private TraceElement getLastTraceElement() {
+        return traceOut.get(traceOut.size() - 1);
+    }
+
 
     /**
      * A thread class used to detect pp and generate a SFC trace
@@ -241,10 +250,9 @@ public class PacketInListener implements PacketProcessingListener {
 
         public void run() {
             String packetDirec = "IN";
-            if (packetReceived.getFlowCookie().getValue().equals(EGRESS_PROBE_COOKIE)) {
+            if (packetReceived.getFlowCookie().getValue().equals(TRACE_EGRESS_PROBE_COOKIE)) {
                 packetDirec = "OUT";
             }
-            LOG.info("get metadata {}", packetReceived.getMatch().getMetadata());
             final byte[] rawPacketOrig = packetReceived.getPayload();
             int eth = getEtherType(rawPacketOrig);
             // Get the EtherType and check that its an IP packet
@@ -263,7 +271,7 @@ public class PacketInListener implements PacketProcessingListener {
                 }
             }
 
-            if (getEcn(rawPacket) != PROBE_PACKET_FULL_TRACE_ID) {
+            if (getEcn(rawPacket) != PROBE_PACKET_FULL_TRACE_ID && getEcn(rawPacket) != PROBE_PACKET_TIME_STAMP_ID) {
                 return;
             }
 
@@ -333,28 +341,36 @@ public class PacketInListener implements PacketProcessingListener {
             ServiceFunctionForwarder sff = topo.readSFF(nodeName);
 
             // get next output port
-            String outPort = packetReceived.getMatch().getMetadata().getMetadata().toString();
-            String outSfDpl = topo.readSfDplFromSff(sff, outPort);
+            BigInteger metadataPort = packetReceived.getMatch().getMetadata().getMetadata();
+            String outSfDpl = null;
+            if (metadataPort != null) {
+                outSfDpl = topo.readSfDplFromSff(sff, metadataPort.toString());
+            } else {
+                LOG.error("could not read metadata");
+            }
+
             // get input from previous SF
             String parts[] = tp.getTpId().getValue().split(":");
             String inSfDpl = topo.readSfDplFromSff(sff, parts[2]);
 
 
+            ServiceFunction sfOut = null;
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
+                if (inTime > timeFromLastTrace + 10 * 1000) {
+                    traceOut.clear();
+                }
+                timeFromLastTrace = inTime;
+                String printTraceOut = String.format("[%s - %s - %s] -", parts[2], sff.getName().getValue(), metadataPort.toString());
 
-                String printTraceOut = String.format("[%s - %s - %s] -", parts[2], sff.getName().getValue(), outPort);
+                traceOut.add(TraceElement.setTraceNode(sff.getName().getValue()));
 
-                traceOut.put(sff.getName().getValue(), new BigInteger("0", COOKIE_BIGINT_HEX_RADIX));
-
-                ServiceFunction sfOut = null;
                 if (outSfDpl != null) {
                     sfOut = topo.readSfName(outSfDpl);
                     if (sfOut != null) {
                         printTraceOut = String.format("%s[%s] - ", printTraceOut, sfOut.getName().getValue());
-                        traceOut.put(sfOut.getName().getValue(), new BigInteger("0", COOKIE_BIGINT_HEX_RADIX));
-
+                        traceOut.add(TraceElement.setTraceNode(sfOut.getName().getValue()));
                     } else {
-                        LOG.error("could no find SF in the dpl {}", inSfDpl);
+                        LOG.error("could no find SF in the dpl {}", outSfDpl);
                     }
                 }
 
@@ -362,11 +378,45 @@ public class PacketInListener implements PacketProcessingListener {
 
                 traceWriter.append(printTraceOut);
                 packetOutSender.sendPacketToPort(nodeName, packetReceived.getMatch().getMetadata().getMetadata().toString(), packetReceived.getPayload());
-            } else if(packetReceived.getFlowCookie().getValue().equals(EGRESS_PROBE_COOKIE)) {
-                if (outSfDpl != null) {
-                    ServiceFunction sfOut = topo.readSfName(outSfDpl);
-                    Collection<BigInteger> times = traceOut.get(sfOut.getName().getValue());
+            } else if(packetReceived.getFlowCookie().getValue().equals(TRACE_EGRESS_PROBE_COOKIE)) {
+
+                if (traceOut.size() == 0) {
+                    LOG.error("There is no trace information to colect timestamps");
+                    return;
                 }
+
+                sfOut = topo.readSfName(outSfDpl);
+                if (sfOut != null) {
+                    LOG.info(" :) Print Times {}:", sfOut.getName().getValue());
+                    for (TraceElement traceElement : traceOut) {
+                        traceElement.setTime(sff.getName().getValue(), chainUnity, 6);
+                        traceElement.incremmentPktCount(sfOut.getName().getValue());
+                        if (traceElement.setTime(sfOut.getName().getValue(), chainUnity, inTime)) {
+                            break;
+                        }
+                    }
+                } else if ( sff != null) {
+                    LOG.info("Print Times {}:", sff.getName().getValue());
+                    for (TraceElement traceElement : traceOut) {
+                        if (traceElement.setTime(sff.getName().getValue(), chainUnity, inTime)) {
+                            if (traceElement.getNodeName().equals(traceOut.get(0).getNodeName())) {
+                                timeFromFirstElement = inTime;
+                            }
+                            if (traceElement.getNodeName().equals(getLastTraceElement().getNodeName()) && getLastTraceElement().timesSize() > chainUnity) {
+                                chainUnity++;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+              //   LOG.info("Times: ------");
+               // if (traceOut.get(traceOut.size()-1).timestamp == inTime) {
+                    for (TraceElement traceElement : traceOut) {
+                        String timeTrace = String.format("{[%d:c(%d)]%d [%s]} - ", traceElement.timesSize(), traceElement.getPktCount(), traceElement.getLastTime(), traceElement.getNodeName());
+                        LOG.info(timeTrace);
+                    }
+             //   }
 
             }
         }

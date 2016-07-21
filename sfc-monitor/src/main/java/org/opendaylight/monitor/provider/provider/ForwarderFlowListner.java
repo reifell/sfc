@@ -22,7 +22,6 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.acti
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.list.ActionBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.list.ActionKey;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.inventory.rev130819.tables.table.*;
-import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.FlowCookie;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.OutputPortValues;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.flow.Instructions;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.flow.InstructionsBuilder;
@@ -47,10 +46,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.binding.api.DataTreeIdentifier;
@@ -78,7 +76,6 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
     private static final Logger LOG = LoggerFactory.getLogger(ForwarderFlowListner.class);
 
     private final DataBroker dataBroker;
-
     private ListenerRegistration<ForwarderFlowListner> listenerRegistration;
     private WriteFlow writeFlow = new WriteFlow();
 
@@ -92,12 +89,14 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
             new BigInteger("FFFFFFFFFFFFFFFF", COOKIE_BIGINT_HEX_RADIX);
 
 
-    public ForwarderFlowListner (final DataBroker db) {
+    public Map<String, List<FlowBuilder>> flowMap = new HashMap<>();
+
+    public ForwarderFlowListner(final DataBroker db) {
         dataBroker = Preconditions.checkNotNull(db, "DataBroker can not be null!");
         registrationListener(db);
     }
 
-    public void close () throws ExecutionException, InterruptedException {
+    public void close() throws ExecutionException, InterruptedException {
         if (writeFlow != null) {
             writeFlow.shutdown();
         }
@@ -111,12 +110,10 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
     }
 
 
-
     private InstanceIdentifier<Flow> getWildCardPath() {
         return InstanceIdentifier.create(Nodes.class).child(Node.class)
                 .augmentation(FlowCapableNode.class).child(Table.class).child(Flow.class);
     }
-
 
 
     @Override
@@ -127,56 +124,98 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
             final DataObjectModification<Flow> mod = change.getRootNode();
 
             Flow flow = mod.getDataAfter();
+            final String nodeName = key.firstKeyOf(Node.class, NodeKey.class).getId().getValue();
 
-            if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE) ) {
-
-                FlowBuilder newFlow = new FlowBuilder(flow);
-                FlowBuilder modifiedFlow = new FlowBuilder(flow);
-
-
-                // trace action to send packet to controller
-                newFlow = traceAction(newFlow);
+            if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE)) {
 
                 //action to only send packets to next table
-              //  modifiedFlow = addGoToNextTable(modifiedFlow);
+                LOG.info("SEND TIMESTAMP FLOW TO - ----- {} ", nodeName);
+                FlowBuilder modifiedFlow = new FlowBuilder(flow);
+                modifiedFlow = addGoToNextTable(modifiedFlow);
+                writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
 
-                final String nodeName = key.firstKeyOf(Node.class, NodeKey.class).getId().getValue();
+            } else if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE.add(BigInteger.ONE))) {
+                // trace action to send packet to controller
+                LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
+                FlowBuilder newFlow = new FlowBuilder(flow);
+                newFlow = traceAction(newFlow);
                 writeFlow.writeFlowToConfig(nodeName, newFlow);
-              //  writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
-
-
             }
-
         }
+
+    }
+
+    public void writeFlows(String nodeName, Flow flow) {
+
+//        for (Map.Entry<String, List<FlowBuilder>> entry : flowMap.entrySet()) {
+//            for (FlowBuilder flow : entry.getValue()) {
+//                LOG.info("SEND FLOW {} {} ", entry, flow.getId().toString());
+//                writeFlow.writeFlowToConfig(entry.getKey(), flow);
+//                try {
+//                    TimeUnit.SECONDS.sleep(1);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+//        }
+//
+//        flowMap.clear();
+//        timeToUpdate = 0;
+
+        //action to only send packets to next table
+        LOG.info("SEND TIMESTAMP FLOW TO - ----- {} ", nodeName);
+        FlowBuilder modifiedFlow = new FlowBuilder(flow);
+        modifiedFlow = addGoToNextTable(modifiedFlow);
+        writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
+
+        try {
+            TimeUnit.MILLISECONDS.sleep(1500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // trace action to send packet to controller
+        LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
+        FlowBuilder newFlow = new FlowBuilder(flow);
+        newFlow = traceAction(newFlow);
+        writeFlow.writeFlowToConfig(nodeName, newFlow);
+
     }
 
     private FlowBuilder addGoToNextTable(FlowBuilder flowBuilder) {
 
-        flowBuilder.setCookie(new FlowCookie(flowBuilder.getCookie().getValue().add(BigInteger.ONE)));
-        flowBuilder.setCookieMask(new FlowCookie(flowBuilder.getCookieMask().getValue().add(BigInteger.ONE)));
-
         Instructions instruction = flowBuilder.getInstructions();
-        List<Instruction> instructionList =  instruction.getInstruction();
+        List<Instruction> instructionList = instruction.getInstruction();
+
+        // add write metadata with port information
+        BigInteger metadataPort = new BigInteger(getOutputPort(instructionList), COOKIE_BIGINT_HEX_RADIX);
+
+        int ibOrder = instructionList.size();
+        addMetadata(instructionList, metadataPort, ibOrder);
+        ibOrder++;
 
         short nextTable = TABLE_INDEX_TRANSPORT_EGRESS + 1;
-        instructionList.add(setActionGoToTable(nextTable, instructionList.size()));
+        instructionList.add(setActionGoToTable(nextTable, ibOrder));
         InstructionsBuilder newInstructions = new InstructionsBuilder();
-
 
         newInstructions.setInstruction(instructionList);
 
         flowBuilder.setInstructions(newInstructions.build());
 
-        LOG.info("-----------------------------------------------------");
-        LOG.info("SEND FLOWWWWWWWWW - ----- {}    action {}",flowBuilder.getMatch().toString(), flowBuilder.getInstructions().toString());
+        MatchBuilder newMatch = new MatchBuilder(flowBuilder.getMatch());
+        FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
+                flowBuilder.getTableId(),
+                flowBuilder.getPriority(),
+                flowBuilder.getCookie().getValue().add(BigInteger.ONE),
+                flowBuilder.getFlowName(), newMatch, newInstructions);
 
-        return flowBuilder;
+        return newFlowBuilder;
     }
 
 
     private FlowBuilder traceAction(FlowBuilder flowBuilder) {
 
-        List<Instruction> instructionList =  flowBuilder.getInstructions().getInstruction();
+        List<Instruction> instructionList = flowBuilder.getInstructions().getInstruction();
 
         String port = null;
         List<Action> newActionList = new ArrayList<>();
@@ -186,10 +225,10 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
             if (instruct.getInstruction() instanceof ApplyActionsCase) {
                 ApplyActionsCase actionscase = (ApplyActionsCase) instruct.getInstruction();
                 int i = 0;
-                ApplyActions actions =  actionscase.getApplyActions();
+                ApplyActions actions = actionscase.getApplyActions();
                 for (Action action : actions.getAction()) {
                     if (action.getAction() instanceof OutputActionCase) {
-                        OutputActionCase outputActionCase =  (OutputActionCase)action.getAction();
+                        OutputActionCase outputActionCase = (OutputActionCase) action.getAction();
                         port = outputActionCase.getOutputAction().getOutputNodeConnector().getValue();
                     } else {
                         newActionList.add(action);
@@ -202,34 +241,28 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         }
         instructionList.remove(j);
 
+
         // add write metadata with port information
-        BigInteger metadataPort =  new BigInteger(port, COOKIE_BIGINT_HEX_RADIX);
+        //BigInteger metadataPort =  new BigInteger(port, COOKIE_BIGINT_HEX_RADIX);
 
-        int ibOrder = instructionList.size();
-        addMetadata(instructionList, metadataPort, ibOrder);
-        ibOrder++;
-        LOG.info("write instruction metadata {}", ibOrder);
+        //int ibOrder = instructionList.size();
+        //addMetadata(instructionList, metadataPort, ibOrder);
+        //ibOrder++;
 
-
-
-        short nextTable = TABLE_INDEX_TRANSPORT_EGRESS + 1;
-        instructionList.add(setActionGoToTable(nextTable, ibOrder));
-
-        ibOrder++;
+        //short nextTable = TABLE_INDEX_TRANSPORT_EGRESS + 1;
+        //instructionList.add(setActionGoToTable(nextTable, ibOrder));
+        //ibOrder++;
 
         // add actions
         ApplyActionsBuilder aab = new ApplyActionsBuilder();
         aab.setAction(newActionList);
         InstructionBuilder ib = new InstructionBuilder();
         ib.setInstruction(new ApplyActionsCaseBuilder().setApplyActions(aab.build()).build());
-        ib.setKey(new InstructionKey(ibOrder));
-        ib.setOrder(ibOrder++);
-        LOG.info("write instruction   {} {}", aab.toString(), ibOrder);
+        ib.setKey(new InstructionKey(j));
+        ib.setOrder(j);
 
 
         instructionList.add(ib.build());
-
-
 
         // add probe packet filter in the match rule
         Match match = flowBuilder.getMatch();
@@ -240,17 +273,31 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         InstructionsBuilder newInstructions = new InstructionsBuilder();
         newInstructions.setInstruction(instructionList);
 
-        FlowBuilder newFlowBuilder =  SfcOpenflowUtils.createFlowBuilder(
+        FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
                 flowBuilder.getTableId(),
-                flowBuilder.getPriority()+1,
+                flowBuilder.getPriority() + 1,
                 PacketInListener.TRACE_FULL_COKIE,
                 "trace_flow", newMatch, newInstructions);
 
-
-        LOG.info("-----------------------------------------------------");
-        LOG.info("SEND FLOWWWWWWWWW - ----- {}    action {}",flowBuilder.getMatch().toString(), flowBuilder.getInstructions().toString());
-
         return newFlowBuilder;
+    }
+
+    private String getOutputPort(List<Instruction> instructionList) {
+
+        //search output action get forwarder port and remove this action to be replaced by controller action
+        for (Instruction instruct : instructionList) {
+            if (instruct.getInstruction() instanceof ApplyActionsCase) {
+                ApplyActionsCase actionscase = (ApplyActionsCase) instruct.getInstruction();
+                ApplyActions actions = actionscase.getApplyActions();
+                for (Action action : actions.getAction()) {
+                    if (action.getAction() instanceof OutputActionCase) {
+                        OutputActionCase outputActionCase = (OutputActionCase) action.getAction();
+                        return outputActionCase.getOutputAction().getOutputNodeConnector().getValue();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private Instruction setActionGoToTable(final short toTable, int order) {
@@ -266,7 +313,7 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
     }
 
 
-    private ActionBuilder setOutputAction (int order) {
+    private ActionBuilder setOutputAction(int order) {
 
         OutputActionBuilder output = new OutputActionBuilder();
         output.setMaxLength(new Integer(0xffff));
@@ -278,12 +325,13 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
         return ab;
     }
-    private  List<Instruction> addMetadata ( List<Instruction> instructions, BigInteger value, int order) {
+
+    private List<Instruction> addMetadata(List<Instruction> instructions, BigInteger value, int order) {
         InstructionBuilder metadataIb = new InstructionBuilder();
         metadataIb.setInstruction(
-            SfcOpenflowUtils.createInstructionMetadata(
-                    order,
-                    value, METADATA_MASK_SFP_MATCH));
+                SfcOpenflowUtils.createInstructionMetadata(
+                        order,
+                        value, METADATA_MASK_SFP_MATCH));
         metadataIb.setKey(new InstructionKey(order));
         metadataIb.setOrder(order++);
         instructions.add(metadataIb.build());
@@ -305,6 +353,5 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
         return ab;
     }
-
 }
 

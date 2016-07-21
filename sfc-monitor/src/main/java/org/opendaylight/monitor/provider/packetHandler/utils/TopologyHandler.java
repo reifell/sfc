@@ -118,7 +118,7 @@ public class TopologyHandler {
             }
         }
         String sfDpl = null;
-        if (dplName.equals("egress")) {
+        if (new String("egress").equals(dplName)) {
             return dplName;
         }
         if (dplName != null) {

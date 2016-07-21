@@ -115,7 +115,6 @@ public class PacketOutSender {
 
     public void sendPacketToPort(String switchNode, String port, byte[] payload) {
         String nodeContertor = String.format("%s:%s", switchNode, port);
-        LOG.info("Send pakcet {} {} ", switchNode, nodeContertor);
         NodeBuilder nodeBuilder = new NodeBuilder();
         nodeBuilder.setId(new org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.NodeId(switchNode));
         nodeBuilder.setKey(new NodeKey(nodeBuilder.getId()));
