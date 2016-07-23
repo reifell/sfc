@@ -550,6 +550,10 @@ if __name__ == "__main__":
     deploy.delRemainingVlanId(deploy.controller, deploy.DEFAULT_PORT, "openflow:2", 2)
     deploy.delRemainingVlanId(deploy.controller, deploy.DEFAULT_PORT, "openflow:3", 2)
 
+    call("ovs-ofctl -OOpenFlow13 del-flows sw2 table=10", shell=True)
+    call("ovs-ofctl -OOpenFlow13 del-flows sw3 table=10", shell=True)
+
+
 
     print "============== All SFC configuration erased =============="
     time.sleep(2)

@@ -14,10 +14,10 @@ def get_mac(iface='gw-eth0'):
     info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', iface[:15]))
     return ':'.join(['%02x' % ord(char) for char in info[18:24]])
 
-mac = "00:00:00:00:00:ee" #get_mac()
+mac = get_mac() #"00:00:00:00:00:ee" #
 print 'mac = ' + mac
 def ip_incoming(pkt):
-    return pkt.src == mac and 'IP' in pkt and 'UDP' in pkt
+    return pkt.src != mac and 'IP' in pkt and 'UDP' in pkt
 def ip_callback(pkt):
     print "sniffado"
     pkt.dst = None

@@ -165,7 +165,7 @@ class ConfigBase:
         if debug == True:
             print r.text
         r.raise_for_status()
-        time.sleep(2)
+        time.sleep(1)
 
 
     def post(self, host, port, uri, data, debug=False):
@@ -181,6 +181,6 @@ class ConfigBase:
         if debug == True:
             print r.text
         r.raise_for_status()
-        time.sleep(2)
+        time.sleep(1)
 
 

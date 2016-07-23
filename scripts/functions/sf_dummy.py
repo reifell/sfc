@@ -26,10 +26,10 @@ def udp_incoming(pkt):
 
 def send_pkt(pkt, sf_tag):
     e, i, u, d = pkt, pkt['IP'], pkt['UDP'], pkt['Raw']
-    pkt['Raw'] = Raw(load=str(d).strip()+','+sf_tag)
+    #pkt['Raw'] = Raw(load=str(d).strip()+','+sf_tag)
     p = Ether(src=e.dst, dst=e.src)/Dot1Q(vlan=int(vlanTag))/i  # IP(src=i.src,dst=i.dst,tos=68)/UDP(sport=u.sport,dport=u.dport)/Raw(load=str(d)+','+tag) #/Dot1Q(vlan=1000)
-    print "Output:"
-    p.show()
+    #print "Output:"
+    #p.show()
     sendp(p, iface=interface)
     print "-------------------------------------"
 
@@ -48,7 +48,7 @@ def udp_incoming(pkt):
 
 def udp_go(pkt):
     print ("Input:")
-    pkt.show()
+    #pkt.show()
     time.sleep(1)
     send_pkt(pkt, tag)
     #send_pkt_dummy()
