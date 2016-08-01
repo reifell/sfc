@@ -17,13 +17,13 @@ def get_mac(iface='gw-eth0'):
 mac = get_mac() #"00:00:00:00:00:ee" #
 print 'mac = ' + mac
 def ip_incoming(pkt):
-    return pkt.src != mac and 'IP' in pkt and 'UDP' in pkt
+    return pkt.src != mac and pkt.dst == mac and 'IP' in pkt and ('ICMP' in pkt or 'UDP' in pkt) ###################UDP
 def ip_callback(pkt):
     print "sniffado"
     pkt.dst = None
     pkt.src = get_mac()
-    time.sleep(1)
-    pkt.show()
+    #time.sleep(1)
+    #pkt.show()
     #send(pkt,iface="gw-eth0")
     send(pkt['IP'])
 

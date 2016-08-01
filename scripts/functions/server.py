@@ -37,6 +37,7 @@ def arp_monitor_callback(pkt):
         i = i + 1
         if catchIpSrc == srcIp:
             print ("count: " + str(i) + " src " + srcIp + " > dst " + dstIp + "\n")
+            time.sleep(1)
 
             packet = IP(dst=srcIp, tos=pkt[IP].tos)/UDP(sport=int(pkt['UDP'].dport), dport=int(pkt['UDP'].sport))/Raw(load=str(pkt['Raw'])+',server')
             send(packet)

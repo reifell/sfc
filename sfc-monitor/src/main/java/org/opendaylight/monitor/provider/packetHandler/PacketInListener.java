@@ -104,7 +104,7 @@ public class PacketInListener implements PacketProcessingListener {
     public PacketInListener(NotificationProviderService notificationProviderService, PacketOutSender packetOutSender) {
 
         this.packetOutSender = packetOutSender;
-        this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, SCHEDULED_THREAD_POOL_SIZE,
+        this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, 50,
                 ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(QUEUE_SIZE));
 
@@ -357,7 +357,10 @@ public class PacketInListener implements PacketProcessingListener {
             ServiceFunction sfOut = null;
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
                 if (inTime > timeFromLastTrace + 10 * 1000) {
+                    LOG.info("cleaning previous trace information");
                     traceOut.clear();
+                    traceOut = new ArrayList<>();
+                    chainUnity = 0;
                 }
                 timeFromLastTrace = inTime;
                 String printTraceOut = String.format("[%s - %s - %s] -", parts[2], sff.getName().getValue(), metadataPort.toString());
@@ -387,16 +390,16 @@ public class PacketInListener implements PacketProcessingListener {
 
                 sfOut = topo.readSfName(outSfDpl);
                 if (sfOut != null) {
-                    LOG.info(" :) Print Times {}:", sfOut.getName().getValue());
                     for (TraceElement traceElement : traceOut) {
                         traceElement.setTime(sff.getName().getValue(), chainUnity, 6);
                         traceElement.incremmentPktCount(sfOut.getName().getValue());
+                        String timeTrace = String.format("{[%d:c(%d)]%d [%s]} - ", traceElement.timesSize(), traceElement.getPktCount(), traceElement.getLastTime(), traceElement.getNodeName());
+                        LOG.info(timeTrace);
                         if (traceElement.setTime(sfOut.getName().getValue(), chainUnity, inTime)) {
                             break;
                         }
                     }
                 } else if ( sff != null) {
-                    LOG.info("Print Times {}:", sff.getName().getValue());
                     for (TraceElement traceElement : traceOut) {
                         if (traceElement.setTime(sff.getName().getValue(), chainUnity, inTime)) {
                             if (traceElement.getNodeName().equals(traceOut.get(0).getNodeName())) {
@@ -404,19 +407,16 @@ public class PacketInListener implements PacketProcessingListener {
                             }
                             if (traceElement.getNodeName().equals(getLastTraceElement().getNodeName()) && getLastTraceElement().timesSize() > chainUnity) {
                                 chainUnity++;
+                                LOG.info("Times: ------");
+                                for (TraceElement trace : traceOut) {
+                                    String timeTrace = String.format("{[%d:c(%d)]%d [%s]} - ", trace.timesSize(), trace.getPktCount(), trace.getLastTime(), trace.getNodeName());
+                                    LOG.info(timeTrace);
+                                }
                             }
                             break;
                         }
                     }
                 }
-
-              //   LOG.info("Times: ------");
-               // if (traceOut.get(traceOut.size()-1).timestamp == inTime) {
-                    for (TraceElement traceElement : traceOut) {
-                        String timeTrace = String.format("{[%d:c(%d)]%d [%s]} - ", traceElement.timesSize(), traceElement.getPktCount(), traceElement.getLastTime(), traceElement.getNodeName());
-                        LOG.info(timeTrace);
-                    }
-             //   }
 
             }
         }

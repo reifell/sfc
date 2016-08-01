@@ -19,15 +19,17 @@ if __name__ == "__main__":
     sf2 = sfc.addSf('2', sw2, 'dpi')
 
     sf3 = sfc.addSf('3', sw3, 'ips')
-    sf4 = sfc.addSf('4', sw4, 'fw')
+    sf4 = sfc.addSf('4', sw4, 'ids')
+    sf5 = sfc.addSf('5', sw4, 'fw')
 
     sfc.addLink(sw1, sw2)
     sfc.addLink(sw2, sw3)
-    sfc.addLink(sw3, sw1)
+    sfc.addLink(sw3, sw4)
+    sfc.addLink(sw4, sw1)
 
     sfc.addGw(sw1)
 
-    chain = ['test', 'dpi', 'ips']
+    chain = ['test', 'dpi', 'ips', 'ids', 'fw']
 
     sfc.addChain('c1', sw1, chain)
 

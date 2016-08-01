@@ -162,7 +162,7 @@ class odlConf(ConfigBase):
         chainPath['service-function-path']['service-chain-name'] = name
         chainPath['service-function-path']['classifier'] = sff
         chainPath['service-function-path']['symmetric-classifier'] = sff
-        chainPath['service-function-path']['symmetric'] = "true"
+        chainPath['service-function-path']['symmetric'] = "false"#"true"
         chainPath['service-function-path']['transport-type'] = "service-locator:mac"
 
         return chainPath
@@ -187,7 +187,7 @@ class odlConf(ConfigBase):
         rsp['input'] = {}
         rsp['input']['name'] = chainPath + "-rend"
         rsp['input']['parent-service-function-path'] = chainPath
-        rsp['input']['symmetric'] = "true"
+        rsp['input']['symmetric'] = "false"#"true"
 
         return rsp
 

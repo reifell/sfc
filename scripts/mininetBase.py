@@ -19,6 +19,8 @@ class sfc():
     hosts = []
     sfs = []
 
+    popens = {}
+
     def deployTopo(self):
 
 
@@ -38,6 +40,8 @@ class sfc():
         self.deploySfc()
 
         CLI(self.net)
+
+        self.cleanProcess()
 
     def __init__(self):
         self.odl.readParameters()
@@ -68,7 +72,10 @@ class sfc():
         sfConf[sf]['IP'] = '10.0.0.1%s' % (num)
         sfConf[sf]['MAC'] = '00:00:00:00:00:1%s' % (num)
         tag = 300 + int(num)
-        sfConf[sf]['CMD'] = 'python ./functions/sf_dummy.py sf%s sf%s-eth0 %s &'% (num, num, str(tag))
+        sfConf[sf]['CMD'] = []
+        sfConf[sf]['CMD'].append("vconfig add sf%s-eth0 %s" % (num, str(tag)))
+        sfConf[sf]['CMD'].append("ip link set up sf%s-eth0.%s" % (num, str(tag)))
+        sfConf[sf]['CMD'].append("./functions/sf_dummy sf%s-eth0.%s > ./sf%s.out 2>&1 &" % (num, str(tag), num))
 
         sfConf[sf]['CONF'] = self.odl.sfConf(sf.name, num, type, sfConf[sf]['IP'], sw.name, tag, sfConf[sf]['MAC'], port, self.getODLSwConf(sw))
         self.callBackConfs['sf'].append(sfConf)
@@ -99,7 +106,8 @@ class sfc():
         gwConf[gw] = {}
         gwConf[gw]['IP'] = '10.0.0.30'
         gwConf[gw]['MAC'] = '00:00:00:00:00:FE'
-        gwConf[gw]['CMD'] = 'python ./functions/gw.py gw &'
+        gwConf[gw]['CMD'] = []
+        gwConf[gw]['CMD'].append("./functions/gw gw-eth0 > ./gw.out 2>&1 &")
         self.callBackConfs['sf'].append(gwConf)
 
     def addLink(self, sw1, sw2):
@@ -131,14 +139,20 @@ class sfc():
                 hostTopo.setIP(conf['IP'])
                 hostTopo.setMAC(conf['MAC'])
                 if hostTopo.name == 'h2':
-                    hostTopo.cmd('python ./functions/server.py 10.0.0.1 h2-eth0 &')
+                    hostTopo.cmd("python ./functions/server.py 10.0.0.1 h2-eth0 > ./server.out 2>&1 &")
+                    self.popens[hostTopo] = int(hostTopo.cmd('echo $!'))
 
     def deploySfConf(self):
         for sf in self.callBackConfs['sf']:
             for sfTopo, conf in sf.iteritems():
                 sfTopo.setIP(conf['IP'])
                 sfTopo.setMAC(conf['MAC'])
-                sfTopo.cmd(conf['CMD'])
+                for cmd in conf['CMD']:
+                    print cmd
+                    sfTopo.cmd(cmd)
+                    pid = sfTopo.cmd('echo $!')
+                    if  bool(pid.strip()):
+                        self.popens[sfTopo] = int(pid)
                 if sfTopo.name is not 'gw':
                     print "post odl conf:"
                     self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION, conf['CONF'], True)
@@ -148,6 +162,7 @@ class sfc():
             for swTopo, conf in sw.iteritems():
                 print swTopo.name
                 for cmd in conf['CMD']:
+                    print cmd
                     call(cmd, shell=True)
 
     def deployODLConf(self):
@@ -163,21 +178,26 @@ class sfc():
                 self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_CLASSIFICATION_FUNTION, conf['scf'], True)
                 self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_RENDERED_PATH, conf['rsp'], True)
 
-
         scf = conf['scf']['service-function-classifier']['scl-service-function-forwarder'][0]['name']
         print scf
+        numberOfSFFs = (len(self.sffs) -1) #considering one classifier
         ############# classifier rules ################################
         for sw in self.callBackConfs['sw']:
             for swTopo, conf in sw.iteritems():
                 if swTopo.name == scf:
                     vlanId = self.odl.getVlanId(self.odl.controller, self.odl.DEFAULT_PORT, "openflow:2", 2)
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,udp,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,ip,dl_vlan=%s,actions=output:5' %(scf, str(vlanId+2)), shell=True) # forward to gateway
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1002,dl_src=00:00:00:00:00:fe,actions=normal'%(scf), shell=True) # forwarding packet from gateway
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' %(scf, str(vlanId+numberOfSFFs)), shell=True) # forward to gateway
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1002,dl_src=00:00:00:00:00:fe,actions=mod_dl_src=00:00:00:00:00:01,normal'%(scf), shell=True) # forwarding packet from gateway
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=99,actions=normal'%(scf), shell=True) #normal traffic from no chain
                     #bidirectional rules
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,udp,nw_dst=10.0.0.1,actions=mod_vlan_vid:%s,output:4' % (scf, str(vlanId+100)), shell=True)  # enter chain downstream
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,ip,dl_vlan=%s,actions=output:5' % (scf, str(vlanId+102)), shell=True)  # forward to gateway
-
-
+                    #call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,udp,nw_dst=10.0.0.1,actions=mod_vlan_vid:%s,output:4' % (scf, str(vlanId+100)), shell=True)  # enter chain downstream
+                    #call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' % (scf, str(vlanId+100+numberOfSFFs)), shell=True)  # forward to gateway
+       #             call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,udp,nw_dst=10.0.0.2,udp_dst=5522,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,icmp,nw_src=10.0.0.1,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+       #             call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,udp,nw_dst=10.0.0.2,udp_dst=5533,actions=mod_nw_ecn=3,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF22FF,table=0,priority=1004,in_port=2,dl_dst=00:00:00:00:00:01,actions=output:1' %(scf), shell=True)
+    def cleanProcess(self):
+        for p in self.popens.values():
+            call('kill %d' %(p), shell=True) #SIGINT
 
