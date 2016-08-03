@@ -194,8 +194,10 @@ public abstract class SfcRspTransportProcessorBase {
         for (SffDataPlaneLocator sffDpl : sffDplList) {
             LOG.debug("try to match sffDpl name: {}, type: {}", sffDpl.getName(),
                     sffDpl.getDataPlaneLocator().getTransport().getName());
-            if (sffDpl.getName().equals(alreadySetSffDpl.getName())) {
-                continue;
+            if (alreadySetSffDpl != null) {
+                if (sffDpl.getName().equals(alreadySetSffDpl.getName())) {
+                    continue;
+                }
             }
             if (sffDpl.getDataPlaneLocator().getTransport().getName().equals(rspTransport)) {
                 if (ingressDplSet) {

@@ -75,7 +75,9 @@ class sfc():
         sfConf[sf]['CMD'] = []
         sfConf[sf]['CMD'].append("vconfig add sf%s-eth0 %s" % (num, str(tag)))
         sfConf[sf]['CMD'].append("ip link set up sf%s-eth0.%s" % (num, str(tag)))
-        sfConf[sf]['CMD'].append("./functions/sf_dummy sf%s-eth0.%s > ./sf%s.out 2>&1 &" % (num, str(tag), num))
+        sfConf[sf]['CMD'].append("./functions/sf_dummy-icmp sf%s-eth0.%s > ./sf%s-icmp.out 2>&1 &" % (num, str(tag), num))
+        sfConf[sf]['CMD'].append("./functions/sf_dummy-udptcp sf%s-eth0.%s > ./sf%s-udp.out 2>&1 &" % (num, str(tag), num))
+
 
         sfConf[sf]['CONF'] = self.odl.sfConf(sf.name, num, type, sfConf[sf]['IP'], sw.name, tag, sfConf[sf]['MAC'], port, self.getODLSwConf(sw))
         self.callBackConfs['sf'].append(sfConf)
@@ -138,21 +140,23 @@ class sfc():
             for hostTopo, conf in host.iteritems():
                 hostTopo.setIP(conf['IP'])
                 hostTopo.setMAC(conf['MAC'])
-                if hostTopo.name == 'h2':
-                    hostTopo.cmd("python ./functions/server.py 10.0.0.1 h2-eth0 > ./server.out 2>&1 &")
-                    self.popens[hostTopo] = int(hostTopo.cmd('echo $!'))
+                self.popens[hostTopo] = []
+                # if hostTopo.name == 'h2':
+                #     hostTopo.cmd("python ./functions/server.py 10.0.0.1 h2-eth0 > ./server.out 2>&1 &")
+                #     self.popens[hostTopo].append(int(hostTopo.cmd('echo $!')))
 
     def deploySfConf(self):
         for sf in self.callBackConfs['sf']:
             for sfTopo, conf in sf.iteritems():
                 sfTopo.setIP(conf['IP'])
                 sfTopo.setMAC(conf['MAC'])
+                self.popens[sfTopo] = []
                 for cmd in conf['CMD']:
                     print cmd
                     sfTopo.cmd(cmd)
                     pid = sfTopo.cmd('echo $!')
                     if  bool(pid.strip()):
-                        self.popens[sfTopo] = int(pid)
+                        self.popens[sfTopo].append(int(pid))
                 if sfTopo.name is not 'gw':
                     print "post odl conf:"
                     self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION, conf['CONF'], True)
@@ -194,10 +198,11 @@ class sfc():
                     #call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,udp,nw_dst=10.0.0.1,actions=mod_vlan_vid:%s,output:4' % (scf, str(vlanId+100)), shell=True)  # enter chain downstream
                     #call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' % (scf, str(vlanId+100+numberOfSFFs)), shell=True)  # forward to gateway
        #             call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,udp,nw_dst=10.0.0.2,udp_dst=5522,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,icmp,nw_src=10.0.0.1,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+            #        call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,icmp,nw_src=10.0.0.1,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
        #             call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,udp,nw_dst=10.0.0.2,udp_dst=5533,actions=mod_nw_ecn=3,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
                     call('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF22FF,table=0,priority=1004,in_port=2,dl_dst=00:00:00:00:00:01,actions=output:1' %(scf), shell=True)
     def cleanProcess(self):
-        for p in self.popens.values():
-            call('kill %d' %(p), shell=True) #SIGINT
+        for cmds in self.popens.values():
+            for cmd in cmds:
+                call('kill %d' %(cmd), shell=True) #SIGINT
 
