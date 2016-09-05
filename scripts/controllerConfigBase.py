@@ -147,8 +147,7 @@ class ConfigBase:
         r = requests.delete(url, headers=headers, auth=HTTPBasicAuth(self.USERNAME, self.PASSWORD))
         if debug == True:
             print r.text
-            print r.text
-        r.raise_for_status()
+        #r.raise_for_status()
 
 
     def put(self, host, port, uri, data, debug=False):
@@ -180,7 +179,7 @@ class ConfigBase:
         r = requests.post(url, data=json.dumps(data), headers=headers, auth=HTTPBasicAuth(self.USERNAME, self.PASSWORD))
         if debug == True:
             print r.text
-        r.raise_for_status()
+        #r.raise_for_status()
         time.sleep(1)
 
 
