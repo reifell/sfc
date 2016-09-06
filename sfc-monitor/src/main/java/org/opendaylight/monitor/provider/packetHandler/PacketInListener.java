@@ -46,6 +46,9 @@ public class PacketInListener implements PacketProcessingListener {
     private final static int PACKET_OFFSET_ETHERTYPE = 12;
     private final static int PACKET_OFFSET_IP = 14;
     private final static int PACKET_OFFSET_IP_TOS = PACKET_OFFSET_IP + 1;
+    private final static int PACKET_OFFSET_IP_ID = PACKET_OFFSET_IP + 4;
+    private final static int PACKET_OFFSET_IP_TTL = PACKET_OFFSET_IP + 8;
+
     private final static int PACKET_OFFSET_IP_SRC = PACKET_OFFSET_IP + 12;
     private final static int PACKET_OFFSET_IP_DST = PACKET_OFFSET_IP + 16;
     public final static int ETHERTYPE_IPV4 = 0x0800;
@@ -229,6 +232,20 @@ public class PacketInListener implements PacketProcessingListener {
         return ecn;
     }
 
+    private int getIpId(final byte[] rawPacket) {
+        final byte[] ipFirtsByte = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP_ID, PACKET_OFFSET_IP_ID + 2);
+
+        int ipId = packShort(ipFirtsByte, 2);
+        return ipId;
+    }
+
+    private int getIpTtl(final byte[] rawPacket) {
+        final byte[] ipFirtsByte = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP_TTL, PACKET_OFFSET_IP_TTL + 1);
+
+        int ipTtl = packShort(ipFirtsByte, 1);
+        return ipTtl;
+    }
+
     private TraceElement getLastTraceElement() {
         return traceOut.get(traceOut.size() - 1);
     }
@@ -274,6 +291,9 @@ public class PacketInListener implements PacketProcessingListener {
             if (getEcn(rawPacket) != PROBE_PACKET_FULL_TRACE_ID && getEcn(rawPacket) != PROBE_PACKET_TIME_STAMP_ID) {
                 return;
             }
+
+            LOG.info("PacketInListener get packet identification - [{}]", getIpId(rawPacket));
+            LOG.info("PacketInListener get packet ttl - [{}]", getIpTtl(rawPacket));
 
 
             // Get the SrcIp and DstIp Addresses
@@ -365,13 +385,18 @@ public class PacketInListener implements PacketProcessingListener {
                 timeFromLastTrace = inTime;
                 String printTraceOut = String.format("[%s - %s - %s] -", parts[2], sff.getName().getValue(), metadataPort.toString());
 
-                traceOut.add(TraceElement.setTraceNode(sff.getName().getValue()));
+                TraceElement te = TraceElement.setTraceNode(sff.getName().getValue(), getIpTtl(rawPacket));
+                te.setTraceHop(printTraceOut);
+                traceOut.add(te);
+
 
                 if (outSfDpl != null) {
                     sfOut = topo.readSfName(outSfDpl);
                     if (sfOut != null) {
                         printTraceOut = String.format("%s[%s] - ", printTraceOut, sfOut.getName().getValue());
-                        traceOut.add(TraceElement.setTraceNode(sfOut.getName().getValue()));
+                        TraceElement teF = TraceElement.setTraceNode(sfOut.getName().getValue(), getIpTtl(rawPacket));
+                        teF.setTraceHop(String.format("[%s] - ", sfOut.getName().getValue()));
+                        traceOut.add(teF);
                     } else {
                         LOG.error("could no find SF in the dpl {}", outSfDpl);
                     }
@@ -379,8 +404,18 @@ public class PacketInListener implements PacketProcessingListener {
 
                 LOG.info(printTraceOut);
 
+
                 traceWriter.append(printTraceOut);
-                packetOutSender.sendPacketToPort(nodeName, packetReceived.getMatch().getMetadata().getMetadata().toString(), packetReceived.getPayload());
+
+                Collections.sort(traceOut);
+
+                LOG.info("Traceout::::    ");
+                for (TraceElement trace : traceOut) {
+                    String timeTrace = String.format("{[%s]:  %s} - ", trace.getNodeName(), trace.getTraceHop());
+                    LOG.info(timeTrace);
+                }
+
+                //packetOutSender.sendPacketToPort(nodeName, packetReceived.getMatch().getMetadata().getMetadata().toString(), packetReceived.getPayload());
             } else if(packetReceived.getFlowCookie().getValue().equals(TRACE_EGRESS_PROBE_COOKIE)) {
 
                 if (traceOut.size() == 0) {

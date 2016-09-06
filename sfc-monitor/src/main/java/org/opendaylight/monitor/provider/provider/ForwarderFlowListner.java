@@ -134,33 +134,18 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
                 modifiedFlow = addGoToNextTable(modifiedFlow);
                 writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
 
-            } else if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE.add(BigInteger.ONE))) {
-                // trace action to send packet to controller
-                LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
-                FlowBuilder newFlow = new FlowBuilder(flow);
-                newFlow = traceAction(newFlow);
-                writeFlow.writeFlowToConfig(nodeName, newFlow);
+//            } else if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE.add(BigInteger.ONE))) {
+//                // trace action to send packet to controller
+//                LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
+//                FlowBuilder newFlow = new FlowBuilder(flow);
+//                newFlow = traceAction(newFlow);
+//                writeFlow.writeFlowToConfig(nodeName, newFlow);
             }
         }
 
     }
 
     public void writeFlows(String nodeName, Flow flow) {
-
-//        for (Map.Entry<String, List<FlowBuilder>> entry : flowMap.entrySet()) {
-//            for (FlowBuilder flow : entry.getValue()) {
-//                LOG.info("SEND FLOW {} {} ", entry, flow.getId().toString());
-//                writeFlow.writeFlowToConfig(entry.getKey(), flow);
-//                try {
-//                    TimeUnit.SECONDS.sleep(1);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        }
-//
-//        flowMap.clear();
-//        timeToUpdate = 0;
 
         //action to only send packets to next table
         LOG.info("SEND TIMESTAMP FLOW TO - ----- {} ", nodeName);
@@ -187,6 +172,52 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         Instructions instruction = flowBuilder.getInstructions();
         List<Instruction> instructionList = instruction.getInstruction();
 
+        Match match = flowBuilder.getMatch();
+        MatchBuilder newMatch = new MatchBuilder(match);
+        SfcOpenflowUtils.addMatchEcn(newMatch, PacketInListener.PROBE_PACKET_FULL_TRACE_ID);
+//        if (newMatch.getEthernetMatch() == null) {
+//            LOG.error("sem match ip :(");
+//            SfcOpenflowUtils.addMatchEtherType(newMatch, SfcOpenflowUtils.ETHERTYPE_IPV4);
+//        }else if(newMatch.getEthernetMatch().getEthernetType() == null) {
+//            LOG.error("sem match ip eth :(");
+//            SfcOpenflowUtils.addMatchEtherType(newMatch, SfcOpenflowUtils.ETHERTYPE_IPV4);
+//
+//        }
+
+        LOG.info("match ip eth {}", newMatch.getEthernetMatch().getEthernetType().toString());
+
+
+        int i = 0;
+        int j = 0;
+        List<Action> newActionList = new ArrayList<>();
+        for (Instruction instruct : instructionList) {
+            if (instruct.getInstruction() instanceof ApplyActionsCase) {
+                ApplyActionsCase actionscase = (ApplyActionsCase) instruct.getInstruction();
+                ApplyActions actions = actionscase.getApplyActions();
+                newActionList.add(SfcOpenflowUtils.createActionDecTTL(i));
+                i++;
+                for (Action action : actions.getAction()) {
+                    ActionBuilder ab = createActionBuilder(i);
+                    ab.setAction(action.getAction());
+                    newActionList.add(ab.build());
+                    i++;
+                }
+                break;
+            }
+            j++;
+        }
+
+        instructionList.remove(j);
+        // add actions
+        ApplyActionsBuilder aab = new ApplyActionsBuilder();
+        aab.setAction(newActionList);
+        InstructionBuilder ib = new InstructionBuilder();
+        ib.setInstruction(new ApplyActionsCaseBuilder().setApplyActions(aab.build()).build());
+        ib.setKey(new InstructionKey(j));
+        ib.setOrder(j);
+        instructionList.add(ib.build());
+
+
         // add write metadata with port information
         BigInteger metadataPort = new BigInteger(getOutputPort(instructionList), COOKIE_BIGINT_HEX_RADIX);
 
@@ -202,12 +233,17 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
         flowBuilder.setInstructions(newInstructions.build());
 
-        MatchBuilder newMatch = new MatchBuilder(flowBuilder.getMatch());
+//        FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
+//                flowBuilder.getTableId(),
+//                flowBuilder.getPriority(),
+//                flowBuilder.getCookie().getValue().add(BigInteger.ONE),
+//                flowBuilder.getFlowName(), newMatch, newInstructions);
+
         FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
                 flowBuilder.getTableId(),
-                flowBuilder.getPriority(),
-                flowBuilder.getCookie().getValue().add(BigInteger.ONE),
-                flowBuilder.getFlowName(), newMatch, newInstructions);
+                flowBuilder.getPriority() + 1,
+                PacketInListener.TRACE_FULL_COKIE,
+                "trace_flow", newMatch, newInstructions);
 
         return newFlowBuilder;
     }
@@ -241,17 +277,6 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         }
         instructionList.remove(j);
 
-
-        // add write metadata with port information
-        //BigInteger metadataPort =  new BigInteger(port, COOKIE_BIGINT_HEX_RADIX);
-
-        //int ibOrder = instructionList.size();
-        //addMetadata(instructionList, metadataPort, ibOrder);
-        //ibOrder++;
-
-        //short nextTable = TABLE_INDEX_TRANSPORT_EGRESS + 1;
-        //instructionList.add(setActionGoToTable(nextTable, ibOrder));
-        //ibOrder++;
 
         // add actions
         ApplyActionsBuilder aab = new ApplyActionsBuilder();
