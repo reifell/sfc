@@ -11,11 +11,14 @@ import sys
 ecn = sys.argv[1]
 
 for n in range(1,7):
-    p = subprocess.Popen('hping3 --udp -p 5555 -o %s  -S 10.0.0.2' %(ecn), shell=True, stdout=subprocess.PIPE, preexec_fn=os.setsid)
+    p = subprocess.Popen('hping3 --udp -p 5010 -o %s  -S 10.0.0.2' %(ecn), shell=True, stdout=subprocess.PIPE, preexec_fn=os.setsid)
+    p1 = subprocess.Popen('hping3 --udp -p 5011 -o %s  -S 10.0.0.2' %(ecn), shell=True, stdout=subprocess.PIPE, preexec_fn=os.setsid)
+
     print "sleep"
     time.sleep(90)
     print "sleep done"
     os.killpg(p.pid, signal.SIGTERM)
+    os.killpg(p1.pid, signal.SIGTERM)
     time.sleep(2)
 
 exit(1)

@@ -190,8 +190,10 @@ class sfc():
             for swTopo, conf in sw.iteritems():
                 if swTopo.name == scf:
                     vlanId = self.odl.getVlanId(self.odl.controller, self.odl.DEFAULT_PORT, "openflow:2", 2)
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,udp,tp_dst=5010,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,udp,tp_dst=5011,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId+100)), shell=True) # enter chain upstream
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' %(scf, str(vlanId+numberOfSFFs)), shell=True) # forward to gateway
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' %(scf, str(vlanId+100+numberOfSFFs)), shell=True) # forward to gateway
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1002,dl_src=00:00:00:00:00:fe,actions=mod_dl_src=00:00:00:00:00:01,normal'%(scf), shell=True) # forwarding packet from gateway
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=99,actions=normal'%(scf), shell=True) #normal traffic from no chain
                     #bidirectional rules

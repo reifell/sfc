@@ -184,9 +184,6 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 //
 //        }
 
-        LOG.info("match ip eth {}", newMatch.getEthernetMatch().getEthernetType().toString());
-
-
         int i = 0;
         int j = 0;
         List<Action> newActionList = new ArrayList<>();
@@ -232,12 +229,6 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         newInstructions.setInstruction(instructionList);
 
         flowBuilder.setInstructions(newInstructions.build());
-
-//        FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
-//                flowBuilder.getTableId(),
-//                flowBuilder.getPriority(),
-//                flowBuilder.getCookie().getValue().add(BigInteger.ONE),
-//                flowBuilder.getFlowName(), newMatch, newInstructions);
 
         FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
                 flowBuilder.getTableId(),

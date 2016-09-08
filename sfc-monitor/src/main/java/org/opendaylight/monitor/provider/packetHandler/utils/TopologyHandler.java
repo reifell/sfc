@@ -136,14 +136,16 @@ public class TopologyHandler {
     }
 
     public ServiceFunction readSfName(String dpl) {
-        InstanceIdentifier<ServiceFunctions> sfIID =
-                InstanceIdentifier.create(ServiceFunctions.class);
-        ServiceFunctions sfs = SfcDataStoreAPI.readTransactionAPI(sfIID, LogicalDatastoreType.CONFIGURATION);
+        if (dpl != null) {
+            InstanceIdentifier<ServiceFunctions> sfIID =
+                    InstanceIdentifier.create(ServiceFunctions.class);
+            ServiceFunctions sfs = SfcDataStoreAPI.readTransactionAPI(sfIID, LogicalDatastoreType.CONFIGURATION);
 
-        for (ServiceFunction sf : sfs.getServiceFunction()) {
-            for ( SfDataPlaneLocator sfDpl : sf.getSfDataPlaneLocator()) {
-                if (sfDpl.getName().getValue().equals(dpl)) {
-                    return sf;
+            for (ServiceFunction sf : sfs.getServiceFunction()) {
+                for (SfDataPlaneLocator sfDpl : sf.getSfDataPlaneLocator()) {
+                    if (sfDpl.getName().getValue().equals(dpl)) {
+                        return sf;
+                    }
                 }
             }
         }
