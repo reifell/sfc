@@ -205,10 +205,10 @@ public class PacketInListener implements PacketProcessingListener {
      * @param bytes
      * @return the bytes packed into a short
      */
-    private int packShort(byte[] bytes, int nByte) {
+     static int packShort(byte[] bytes, int nByte) {
         short shortVal;
         if (nByte == 2) {
-            shortVal = (short) ((bytes[0] << 8) | (bytes[1]));
+            shortVal = (short) (((bytes[0]& 0xff) << 8) | (bytes[1]& 0xff));
         } else if (nByte == 1) {
             shortVal = (short) (bytes[0]);
         } else {
@@ -420,13 +420,6 @@ public class PacketInListener implements PacketProcessingListener {
                         }
                     }
 
-//                    for (ConcurrentHashMap.Entry<Integer, List<TraceElement>> entry : traceMap.entrySet()) {
-//                        LOG.info("Traceout map {} ::::    ", entry.getKey());
-//                        for (TraceElement trace : entry.getValue()) {
-//                            String timeTrace = String.format("{[%d] %s} - ", trace.getPktCount(), trace.getTraceHop());
-//                            LOG.info(timeTrace);
-//                        }
-//                    }
                     LOG.info("mapSize {} ", traceMap.size());
                 }
                 List<TraceElement> traceOut = traceMap.get(new Integer(getIpId(rawPacket)));
@@ -442,6 +435,7 @@ public class PacketInListener implements PacketProcessingListener {
                 if (traceElement == null) {
                     LOG.error("could no find SF in the dpl {}", outSfDpl);
                 }
+                Integer idIp = new Integer(getIpId(rawPacket));
                 traceElement.setTime(inTime);
                 traceOut.add(traceElement);
 
@@ -452,7 +446,6 @@ public class PacketInListener implements PacketProcessingListener {
 
                 Collections.sort(traceOut);
 
-                Integer idIp = new Integer(getIpId(rawPacket));
 
                 traceMap.put(idIp, traceOut);
 
