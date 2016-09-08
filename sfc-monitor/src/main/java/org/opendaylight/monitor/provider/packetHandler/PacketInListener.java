@@ -31,10 +31,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Ethernet Packet Decoder
@@ -92,9 +89,9 @@ public class PacketInListener implements PacketProcessingListener {
     int chainUnity = 0;
 
     //private List<TraceElement> traceOut = new ArrayList<>();
-    private Map<Integer, List<TraceElement>> traceMap = new HashMap<>();
+    private ConcurrentHashMap<Integer, List<TraceElement>> traceMap = new ConcurrentHashMap<>();
 
-    private Map<String,  List<TraceElement>> storedTraces = new HashMap<>();
+    private ConcurrentHashMap<String,  List<TraceElement>> storedTraces = new ConcurrentHashMap<>();
 
 
     public void close() throws ExecutionException, InterruptedException {
@@ -276,7 +273,7 @@ public class PacketInListener implements PacketProcessingListener {
 
             boolean foundTrace = false;
             ArrayList<Integer> found = new ArrayList<>();
-            for(Map.Entry<Integer, List<TraceElement>> entry : traceMap.entrySet()) {
+            for(ConcurrentHashMap.Entry<Integer, List<TraceElement>> entry : traceMap.entrySet()) {
                 TraceElement traceElement = entry.getValue().get(entry.getValue().size() - 1);
 
                 if (inTime > traceElement.getLastTime() + TEN_SECONDS) {
@@ -406,7 +403,6 @@ public class PacketInListener implements PacketProcessingListener {
             String parts[] = tp.getTpId().getValue().split(":");
             String inSfDpl = topo.readSfDplFromSff(sff, parts[2]);
 
-
             ServiceFunction sfOut = null;
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
                 updateStoredChains();
@@ -416,13 +412,21 @@ public class PacketInListener implements PacketProcessingListener {
                     //traceOut.clear();
                     //traceOut = new ArrayList<>();
                     chainUnity = 0;
-                    for (Map.Entry<String, List<TraceElement>> entry : storedTraces.entrySet()) {
+                    for (ConcurrentHashMap.Entry<String, List<TraceElement>> entry : storedTraces.entrySet()) {
                         LOG.info("Traceout {} ::::    ", entry.getKey());
                         for (TraceElement trace : entry.getValue()) {
                             String timeTrace = String.format("{[%d] %s} - ", trace.getPktCount(), trace.getTraceHop());
                             LOG.info(timeTrace);
                         }
                     }
+
+//                    for (ConcurrentHashMap.Entry<Integer, List<TraceElement>> entry : traceMap.entrySet()) {
+//                        LOG.info("Traceout map {} ::::    ", entry.getKey());
+//                        for (TraceElement trace : entry.getValue()) {
+//                            String timeTrace = String.format("{[%d] %s} - ", trace.getPktCount(), trace.getTraceHop());
+//                            LOG.info(timeTrace);
+//                        }
+//                    }
                     LOG.info("mapSize {} ", traceMap.size());
                 }
                 List<TraceElement> traceOut = traceMap.get(new Integer(getIpId(rawPacket)));
@@ -441,7 +445,7 @@ public class PacketInListener implements PacketProcessingListener {
                 traceElement.setTime(inTime);
                 traceOut.add(traceElement);
 
-                LOG.info(traceElement.getTraceHop());
+                LOG.info("[{}] -> {}", getIpId(rawPacket), traceElement.getTraceHop());
 
 
                 traceWriter.append(traceElement.getTraceHop());
