@@ -51,12 +51,23 @@ public class TraceElement implements Comparable<TraceElement> {
     }
 
     private void buildTraceOut() {
-       String printTraceOut = String.format("[%d - %s - %s] -", ingressPort, sffName, egressPort, sfName);
+       String printTraceOut = String.format("[%d - %s - %s] -", ingressPort, sffName, egressPort);
         if (sfName != null) {
             traceHop = String.format("%s[%s] - ", printTraceOut, sfName);
         } else {
             traceHop = printTraceOut;
         }
+    }
+    //   [
+    // [ [4,1,"SFF1","SF1",19], [3,8,"SFF1","SF1",19], [] ],
+    //         [ [4,1,"SFF1","SF1",19], [3,8,"SFF1","SF1",19], [] ],
+    //         ]
+    public String getTraceGraph() {
+        String sfName = "#None";
+        if (this.sfName != null) {
+            sfName = this.sfName;
+        }
+        return String.format("[%d, %d, \"%s\", \"%s\", %d]", ingressPort, egressPort, sffName, sfName, getPktCount());
     }
 
     public void setTime(long timestamp) {

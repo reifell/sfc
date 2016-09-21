@@ -412,14 +412,26 @@ public class PacketInListener implements PacketProcessingListener {
                     //traceOut.clear();
                     //traceOut = new ArrayList<>();
                     chainUnity = 0;
+                    traceWriter.append("Start: [ ");
+                    int sizeout = storedTraces.entrySet().size();
                     for (ConcurrentHashMap.Entry<String, List<TraceElement>> entry : storedTraces.entrySet()) {
                         LOG.info("Traceout {} ::::    ", entry.getKey());
+                        traceWriter.append("[ ");
+                        int size = entry.getValue().size();
                         for (TraceElement trace : entry.getValue()) {
                             String timeTrace = String.format("{[%d] %s} - ", trace.getPktCount(), trace.getTraceHop());
                             LOG.info(timeTrace);
+                            traceWriter.append(trace.getTraceGraph());
+                            if (--size != 0) {
+                                traceWriter.append(",");
+                            }
+                        }
+                        traceWriter.append("] ");
+                        if (--sizeout != 0) {
+                            traceWriter.append(",");
                         }
                     }
-
+                    traceWriter.append("] ");
                     LOG.info("mapSize {} ", traceMap.size());
                 }
                 List<TraceElement> traceOut = traceMap.get(new Integer(getIpId(rawPacket)));
@@ -442,7 +454,7 @@ public class PacketInListener implements PacketProcessingListener {
                 LOG.info("[{}] -> {}", getIpId(rawPacket), traceElement.getTraceHop());
 
 
-                traceWriter.append(traceElement.getTraceHop());
+                //traceWriter.append(traceElement.getTraceHop());
 
                 Collections.sort(traceOut);
 
