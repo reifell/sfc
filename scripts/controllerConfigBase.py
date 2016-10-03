@@ -69,6 +69,8 @@ class ConfigBase:
         remaning = True
         while remaning:
             r = requests.get(urll, auth=HTTPBasicAuth(self.USERNAME, self.PASSWORD))
+            if r.status_code == 503:
+                return;
             j = json.loads(r.text)
             key2 = self.getFlowOnJson(j)
             print key2
@@ -88,6 +90,9 @@ class ConfigBase:
                         if 'flow-name' in key2:
                             if key2 != None and key2['flow-name'] == 'nextHop' and key2['priority'] == 450:
                                 vlanid.append(key2['match']['vlan-match']['vlan-id']['vlan-id'])
+        print vlanid
+        if not vlanid:
+            return None
         vl = min(int(s) for s in vlanid)
         print vl
         return vl

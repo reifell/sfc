@@ -32,8 +32,8 @@ c2Min = []
 c2Max = []
 c2Avg = []
 total = []
-for i in range(1,5):
-    for n in range(1,120):
+for i in range(1,3):
+    for n in range(1,20):
         ipId = randint(0,65500)
         while ipId in id:
             ipId = randint(0, 65500)
@@ -45,9 +45,9 @@ for i in range(1,5):
         #id.append(ipId)
         #id.append(ipId1)
 
-        output1 = subprocess.check_output('hping3 --udp -p 5010 -o %s --id %d  -S 10.0.0.2 -c 1 || true' %(ecn, ipId), shell=True,  universal_newlines=True, stderr=subprocess.STDOUT, preexec_fn=os.setsid)
+        #output1 = subprocess.check_output('hping3 --udp -p 5010 -o %s --id %d  -S 10.0.0.2 -c 1 || true' %(ecn, ipId), shell=True,  universal_newlines=True, stderr=subprocess.STDOUT, preexec_fn=os.setsid)
 
-        #output2 = subprocess.check_output('hping3 --udp -p 5011 -o %s --id %d  -S 10.0.0.2 -c 1 || true' %(ecn, ipId1), shell=True,  universal_newlines=True, stderr=subprocess.STDOUT, preexec_fn=os.setsid)
+        output1 = subprocess.check_output('hping3 --udp -p 5010 -o %s --id %d  -S 10.0.0.2 -c 1 || true' %(ecn, ipId), shell=True,  universal_newlines=True, stderr=subprocess.STDOUT, preexec_fn=os.setsid)
         time.sleep(1)
         res = parsePing(output1)
         if (res != None):

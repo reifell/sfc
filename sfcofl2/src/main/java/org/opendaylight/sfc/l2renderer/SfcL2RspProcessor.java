@@ -314,7 +314,7 @@ public class SfcL2RspProcessor {
 
         if (entry.getDstSff().equals(SffGraph.EGRESS)) {
             // If dstSff is EGRESS, the SF is actually on the srcSff
-            SfDataPlaneLocator sfSrcDpl = sfcL2ProviderUtils.getSfDataPlaneLocator(sfDst, entry.getSrcSff());
+            SfDataPlaneLocator sfSrcDpl = sfcL2ProviderUtils.getSfDataPlaneLocator2nd(sfDst, entry.getSrcSff());
 
             // Configure the SF-SFF-GW NextHop, we dont have the DstDpl, leaving it blank
             transportProcessor.configureNextHopFlow(entry, sfSrcDpl, (SffDataPlaneLocator) null);
@@ -323,8 +323,12 @@ public class SfcL2RspProcessor {
 
         SfDataPlaneLocator sfSrcDpl = null;
         if (entry.getPrevSf() != null) {
-            sfSrcDpl = sfcL2ProviderUtils.getSfDataPlaneLocator(
-                    sfcL2ProviderUtils.getServiceFunction(entry.getPrevSf(), entry.getPathId()), entry.getSrcSff());
+            // in case snort, we need to match the sourc dpl from the input packet (as snort does not reverse mac addresses)
+            ServiceFunction prevSF = sfcL2ProviderUtils.getServiceFunction(entry.getPrevSf(), entry.getPathId());
+            sfSrcDpl = sfcL2ProviderUtils.getSfDataPlaneLocator2nd(prevSF
+                    , entry.getSrcSff());
+            LOG.info("prev SF and dpl {}     {}", prevSF, sfSrcDpl);
+
         }
 
         // Configure the SFF-SFF NextHop using the sfDpl and sffDstIngressDpl

@@ -45,7 +45,7 @@ public class MonitorProvider implements AutoCloseable {
         this.flowListner = new FlowListner(dataBroker);
         this.ForwarderFlowListner = new ForwarderFlowListner(dataBroker);
         this.packetOutSender = new PacketOutSender(rpcProvider);
-        this.packetInListener =  new PacketInListener(notificationService, packetOutSender);
+        this.packetInListener =  new PacketInListener(notificationService, packetOutSender, rpcProvider);
 
         //this.packetOutSender.init();
 

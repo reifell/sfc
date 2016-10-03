@@ -22,9 +22,8 @@ public class TraceElement implements Comparable<TraceElement> {
     private int ingressPort = 0;
     private int egressPort = 0;
     private ArrayList<Long> timestamp = new ArrayList<>();
-    private Long timestampDic = null;
     private String traceHop;
-    private long pktConnt = 0;
+    private ArrayList<Integer> hopDelay = new ArrayList<>();
     private int ttl = 0;
 
     TraceElement (String sffName, String sfName, int in, int out, int ttl) {
@@ -74,23 +73,19 @@ public class TraceElement implements Comparable<TraceElement> {
         this.timestamp.add(timestamp);
     }
 
-    public void setDirectTime(long timestamp) {
-
-           this.timestampDic = timestamp;
-
+    public void setHopDelay(Integer delay) {
+        this.hopDelay.add(delay);
+    }
+    public ArrayList<Integer> getHopDelay() {
+        return this.hopDelay;
     }
 
-    public long getDirectTime() {
-        return this.timestampDic;
+    public float getHopDelayAverage() {
+        float sum = 0;
+        for (Integer d : hopDelay) sum += d;
+        if (hopDelay.size() == 0) return sum;
+        return sum / (float)hopDelay.size();
     }
-
-
-    public void incremmentPktCount(String node) {
-        if (this.sffName.equals(node)) {
-            this.pktConnt++;
-        }
-    }
-
     public long getPktCount() {
         return timestamp.size();
     }
@@ -103,12 +98,8 @@ public class TraceElement implements Comparable<TraceElement> {
         }
     }
 
-    public long getTimestamp(int pos) {
-        if (timestamp.get(pos) < timestamp.size()) {
-            return timestamp.get(pos);
-        } else {
-            return 7;
-        }
+    public ArrayList<Long> getTimestamp() {
+        return timestamp;
     }
 
     @Override

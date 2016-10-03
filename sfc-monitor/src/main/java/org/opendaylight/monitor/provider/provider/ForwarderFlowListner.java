@@ -129,18 +129,18 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
             if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE)) {
 
                 //action to only send packets to next table
-                LOG.info("SEND TIMESTAMP FLOW TO - ----- {} ", nodeName);
+                LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
                 FlowBuilder modifiedFlow = new FlowBuilder(flow);
-                modifiedFlow = addGoToNextTable(modifiedFlow);
+                modifiedFlow = addTraceRule(modifiedFlow);
                 writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
 
-//            } else if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE.add(BigInteger.ONE))) {
+            }// else if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE.add(BigInteger.ONE))) {
 //                // trace action to send packet to controller
 //                LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
 //                FlowBuilder newFlow = new FlowBuilder(flow);
-//                newFlow = traceAction(newFlow);
+//                newFlow = addTraceRule(newFlow);
 //                writeFlow.writeFlowToConfig(nodeName, newFlow);
-            }
+//            }
         }
 
     }
@@ -150,7 +150,7 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         //action to only send packets to next table
         LOG.info("SEND TIMESTAMP FLOW TO - ----- {} ", nodeName);
         FlowBuilder modifiedFlow = new FlowBuilder(flow);
-        modifiedFlow = addGoToNextTable(modifiedFlow);
+        modifiedFlow = addTraceRule(modifiedFlow);
         writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
 
         try {
@@ -167,7 +167,7 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
     }
 
-    private FlowBuilder addGoToNextTable(FlowBuilder flowBuilder) {
+    private FlowBuilder addTraceRule(FlowBuilder flowBuilder) {
 
         Instructions instruction = flowBuilder.getInstructions();
         List<Instruction> instructionList = instruction.getInstruction();
@@ -175,14 +175,6 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         Match match = flowBuilder.getMatch();
         MatchBuilder newMatch = new MatchBuilder(match);
         SfcOpenflowUtils.addMatchEcn(newMatch, PacketInListener.PROBE_PACKET_FULL_TRACE_ID);
-//        if (newMatch.getEthernetMatch() == null) {
-//            LOG.error("sem match ip :(");
-//            SfcOpenflowUtils.addMatchEtherType(newMatch, SfcOpenflowUtils.ETHERTYPE_IPV4);
-//        }else if(newMatch.getEthernetMatch().getEthernetType() == null) {
-//            LOG.error("sem match ip eth :(");
-//            SfcOpenflowUtils.addMatchEtherType(newMatch, SfcOpenflowUtils.ETHERTYPE_IPV4);
-//
-//        }
 
         int i = 0;
         int j = 0;
@@ -239,8 +231,60 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         return newFlowBuilder;
     }
 
+      private FlowBuilder addDecttlRule(FlowBuilder flowBuilder) {
 
-    private FlowBuilder traceAction(FlowBuilder flowBuilder) {
+          Instructions instruction = flowBuilder.getInstructions();
+          List<Instruction> instructionList = instruction.getInstruction();
+
+          int i = 0;
+          int j = 0;
+          List<Action> newActionList = new ArrayList<>();
+          for (Instruction instruct : instructionList) {
+              if (instruct.getInstruction() instanceof ApplyActionsCase) {
+                  ApplyActionsCase actionscase = (ApplyActionsCase) instruct.getInstruction();
+                  ApplyActions actions = actionscase.getApplyActions();
+                  newActionList.add(SfcOpenflowUtils.createActionDecTTL(i));
+                  i++;
+                  for (Action action : actions.getAction()) {
+                      ActionBuilder ab = createActionBuilder(i);
+                      ab.setAction(action.getAction());
+                      newActionList.add(ab.build());
+                      i++;
+                  }
+                  break;
+              }
+              j++;
+          }
+
+          instructionList.remove(j);
+          // add actions
+          ApplyActionsBuilder aab = new ApplyActionsBuilder();
+          aab.setAction(newActionList);
+          InstructionBuilder ib = new InstructionBuilder();
+          ib.setInstruction(new ApplyActionsCaseBuilder().setApplyActions(aab.build()).build());
+          ib.setKey(new InstructionKey(j));
+          ib.setOrder(j);
+          instructionList.add(ib.build());
+
+          InstructionsBuilder newInstructions = new InstructionsBuilder();
+          newInstructions.setInstruction(instructionList);
+
+          //MatchBuilder newMatch = new MatchBuilder(flowBuilder.getMatch());
+          //SfcOpenflowUtils.addMatchEtherType(newMatch,SfcOpenflowUtils.ETHERTYPE_IPV4);
+
+          MatchBuilder newMatch = new MatchBuilder(flowBuilder.getMatch());
+          SfcOpenflowUtils.addMatchIP(newMatch);
+
+          FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
+                  flowBuilder.getTableId(),
+                  flowBuilder.getPriority() +1,
+                  TRANSPORT_EGRESS_COOKIE.add(BigInteger.ONE),
+                  flowBuilder.getFlowName(), newMatch, newInstructions);
+
+          return newFlowBuilder;
+      }
+
+        private FlowBuilder traceAction(FlowBuilder flowBuilder) {
 
         List<Instruction> instructionList = flowBuilder.getInstructions().getInstruction();
 

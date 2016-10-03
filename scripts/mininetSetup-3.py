@@ -17,11 +17,11 @@ if __name__ == "__main__":
 
     sf1 = sfc.addSf('1', sw2, 'test')
     sf2 = sfc.addSf('2', sw2, 'dpi')
-    sf3 = sfc.addSf('3', sw2, 'dpi2')
+    sf3 = sfc.addSnort('3', sw2, 'ips')
 
-    sf4 = sfc.addSf('4', sw3, 'ips')
-    sf5 = sfc.addSf('5', sw3, 'ids')
-    sf6 = sfc.addSf('6', sw3, 'fw')
+    sf4 = sfc.addSf('4', sw3, 'ips2')
+    sf5 = sfc.addSf('5', sw3, 'fw')
+    sf6 = sfc.addSf('6', sw3, 'fw1')
 
     #sf7 = sfc.addSf('7', sw4, 'fw1')
     #sf8 = sfc.addSf('8', sw4, 'fw2')
@@ -33,14 +33,14 @@ if __name__ == "__main__":
     #sfc.addLink(sw4, sw1)
 
     sfc.addGw(sw1)
+    #'ips',
+    chain = ['test', 'dpi', 'fw', 'fw1', 'fw']#, 'fw1', 'fw2', 'fw3']
 
-    chain = ['test', 'dpi', 'dpi2', 'ips']#, 'ids', 'fw', 'fw1', 'fw2', 'fw3']
-
-    chain2 = ['test', 'dpi2', 'ips', 'ids', 'fw', ]#'fw1', 'fw2', 'fw3']
+    #chain2 = ['test', 'dpi', 'dpi2', 'ips', 'ids', 'fw', ]#'fw1', 'fw2', 'fw3']
 
     sfc.addChain('c1', sw1, chain)
 
-    sfc.addChain('c2', sw1, chain2)
+    #sfc.addChain('c2', sw1, chain2)
 
     print "start"
 

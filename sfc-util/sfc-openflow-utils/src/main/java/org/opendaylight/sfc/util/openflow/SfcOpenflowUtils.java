@@ -344,6 +344,13 @@ public class SfcOpenflowUtils {
         match.setIpMatch(mergeIpMatch(match, ipMatch));
     }
 
+    public static void addMatchIP(MatchBuilder match) {
+        addMatchEtherType(match, ETHERTYPE_IPV4);
+
+        IpMatchBuilder ipMatch = new IpMatchBuilder();
+        match.setIpMatch(mergeIpMatch(match, ipMatch));
+    }
+
     public static void addMatchSrcUdpPort(MatchBuilder match, int portNum) {
         PortNumber port = new PortNumber(portNum);
         UdpMatchBuilder udpMatch = new UdpMatchBuilder();

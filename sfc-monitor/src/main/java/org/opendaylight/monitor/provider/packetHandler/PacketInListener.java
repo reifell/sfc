@@ -9,9 +9,11 @@ package org.opendaylight.monitor.provider.packetHandler;
 
 import org.opendaylight.controller.sal.binding.api.NotificationProviderService;
 
+import org.opendaylight.controller.sal.binding.api.RpcProviderRegistry;
 import org.opendaylight.monitor.provider.packetHandler.utils.TopologyHandler;
 import org.opendaylight.monitor.provider.packetHandler.utils.TraceElement;
 import org.opendaylight.monitor.provider.packetHandler.utils.TraceWriter;
+import org.opendaylight.monitor.provider.provider.TraceRpc;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunction;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.NodeConnectorId;
@@ -22,6 +24,7 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.N
 import org.opendaylight.yang.gen.v1.urn.opendaylight.model.match.types.rev131026.match.Metadata;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.packet.service.rev130709.PacketProcessingListener;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.packet.service.rev130709.PacketReceived;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.controller.config.sfc.monitor.impl.rev160506.SfcMonitorImplService;
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.topology.node.TerminationPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +77,9 @@ public class PacketInListener implements PacketProcessingListener {
     public static final short PROBE_PACKET_TIME_STAMP_ID = 3;
 
     private static final int TEN_SECONDS = 10 * 1000;
+    private static final int TREE_SECONDS = 3 * 1000;
 
+    private static PacketInListener packetInListenerObj = null;
 
     private TraceWriter traceWriter = null;
 
@@ -89,7 +94,7 @@ public class PacketInListener implements PacketProcessingListener {
     int chainUnity = 0;
 
     //private List<TraceElement> traceOut = new ArrayList<>();
-    private ConcurrentHashMap<Integer, List<TraceElement>> traceMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, List<TraceElement>> traceMap = new ConcurrentHashMap<>();
 
     private ConcurrentHashMap<String,  List<TraceElement>> storedTraces = new ConcurrentHashMap<>();
 
@@ -106,7 +111,7 @@ public class PacketInListener implements PacketProcessingListener {
         traceWriter.close();
     }
 
-    public PacketInListener(NotificationProviderService notificationProviderService, PacketOutSender packetOutSender) {
+    public PacketInListener(NotificationProviderService notificationProviderService, PacketOutSender packetOutSender, RpcProviderRegistry rpcProviderRegistry) {
 
         this.packetOutSender = packetOutSender;
         this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, 50,
@@ -114,6 +119,16 @@ public class PacketInListener implements PacketProcessingListener {
                 new LinkedBlockingQueue<Runnable>(QUEUE_SIZE));
 
         notificationProviderService.registerNotificationListener(this);
+        if (packetInListenerObj == null) {
+            packetInListenerObj = this;
+        }
+
+        TraceRpc traceRpc = new TraceRpc();
+        traceRpc.putPacketInListerObject(this);
+
+        //final BindingAwareBroker.RpcRegistration<SfcMonitorImplService> rpcRegistration;
+        rpcProviderRegistry.addRpcImplementation(SfcMonitorImplService.class, traceRpc);
+
 
         try {
             traceWriter = new TraceWriter(new File("/tmp/trace"));
@@ -121,6 +136,10 @@ public class PacketInListener implements PacketProcessingListener {
             LOG.error("Error open trace file");
         }
         traceWriter.open();
+    }
+
+    public static PacketInListener getPacketInListenerObj() {
+        return PacketInListener.packetInListenerObj;
     }
 
     @Override
@@ -136,7 +155,9 @@ public class PacketInListener implements PacketProcessingListener {
             try {
                 threadPoolExecutorService.execute(processPaketIn);
             } catch (Exception ex) {
-                LOG.error("error trying to configure SFC monitor rule", ex.toString());
+                LOG.error("error processing SFC trace collection {}", ex.getMessage());
+                throw ex;
+
             }
 
         } else if (cookie.equals(CALIBRATION_PACKET)) {
@@ -233,6 +254,19 @@ public class PacketInListener implements PacketProcessingListener {
         ecn = tos & ECN_MASK;
         return ecn;
     }
+    //get IP ID + flags and fragmentation
+
+    private long getPacktIdentification (final byte[] rawPacket) {
+        //LOG.info("ipFlag {} ipId {}", getIpflags(rawPacket), getIpId(rawPacket));
+        return (((long)getIpflags(rawPacket)) << 32) | (getIpId(rawPacket) & 0xffffffffL);
+    }
+
+    private int getIpflags(final byte[] rawPacket) {
+        final byte[] ipFirtsByte = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP_ID +2, PACKET_OFFSET_IP_ID + 2 + 2);
+
+        int ipflags = packShort(ipFirtsByte, 2);
+        return ipflags;
+    }
 
     private int getIpId(final byte[] rawPacket) {
         final byte[] ipFirtsByte = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP_ID, PACKET_OFFSET_IP_ID + 2);
@@ -248,11 +282,90 @@ public class PacketInListener implements PacketProcessingListener {
         return ipTtl;
     }
 
-//    private TraceElement getLastTraceElement() {
-//        return traceOut.get(traceOut.size() - 1);
-//    }
 
+    public void cleanTraceMaps() {
+        traceMap.clear();
+        storedTraces.clear();
+    }
 
+    public void getTrace() {
+        updateStoredChains(System.currentTimeMillis());
+        LOG.info("print trace information");
+        //traceOut.clear();
+        //traceOut = new ArrayList<>();
+        chainUnity = 0;
+        traceWriter.append("Start: [ ");
+        int sizeout = storedTraces.entrySet().size();
+        for (ConcurrentHashMap.Entry<String, List<TraceElement>> entry : storedTraces.entrySet()) {
+            LOG.info("Traceout {} ::::    ", entry.getKey());
+            traceWriter.append("[ ");
+            int size = entry.getValue().size();
+            for (TraceElement trace : entry.getValue()) {
+                String traceFormat = String.format("{[%d] %s} - (%.2f) %d", trace.getPktCount(), trace.getTraceHop(), trace.getHopDelayAverage(), trace.getLastTime());
+                LOG.info(traceFormat);
+                traceWriter.append(trace.getTraceGraph());
+                if (--size != 0) {
+                    traceWriter.append(",");
+                }
+//                            String hopDStr = null;
+//                            for (Integer hopD : trace.getHopDelay()) {
+//                                hopDStr += String.format("%d, ", hopD);
+//                            }
+//                            LOG.info(" delays [{}]", hopDStr);
+            }
+            traceWriter.append("] ");
+            if (--sizeout != 0) {
+                traceWriter.append(",");
+            }
+        }
+        traceWriter.append("] ");
+        LOG.info("mapSize {} ", traceMap.size());
+    }
+
+    private void updateStoredChains(long inTime) {
+
+        boolean foundTrace = false;
+        ArrayList<Long> found = new ArrayList<>();
+        for(ConcurrentHashMap.Entry<Long, List<TraceElement>> entry : traceMap.entrySet()) {
+            TraceElement traceElement = entry.getValue().get(entry.getValue().size() - 1);
+
+            if (inTime > traceElement.getLastTime() + TEN_SECONDS) {
+
+                for (List<TraceElement> tracesFromStore : storedTraces.values()) {
+                    if (tracesFromStore.equals(entry.getValue())) {
+                        //update timestamp from each hop
+                        int i = 0;
+                        Long previousHopDelay = (long)0;
+                        for (TraceElement trace : tracesFromStore) {
+                            Integer hopDelay;
+                            Long hopTime = entry.getValue().get(i).getLastTime();
+                            if (previousHopDelay == 0) {
+                                hopDelay = 0;
+                            } else {
+                                hopDelay = (int) (long)(hopTime - previousHopDelay);
+                                if (hopDelay < 0) hopDelay = 0;
+                            }
+                            trace.setTime(hopTime);
+                            trace.setHopDelay(hopDelay);
+                            previousHopDelay = hopTime;
+                            i++;
+                        }
+                        foundTrace = true;
+                        break;
+                    }
+                }
+                if (!foundTrace) {
+                    String chainName = String.format("chain-%d", storedTraces.size());
+                    storedTraces.put(chainName, entry.getValue());
+                }
+                found.add(entry.getKey());
+            }
+
+        }
+        for (Long key : found) {
+            traceMap.remove(key);
+        }
+    }
 
 
     /**
@@ -268,36 +381,6 @@ public class PacketInListener implements PacketProcessingListener {
             this.inTime = inTime;
         }
 
-
-        private void updateStoredChains() {
-
-            boolean foundTrace = false;
-            ArrayList<Integer> found = new ArrayList<>();
-            for(ConcurrentHashMap.Entry<Integer, List<TraceElement>> entry : traceMap.entrySet()) {
-                TraceElement traceElement = entry.getValue().get(entry.getValue().size() - 1);
-
-                if (inTime > traceElement.getLastTime() + TEN_SECONDS) {
-                    for (List<TraceElement> tracesFromStore : storedTraces.values()) {
-                        if (tracesFromStore.equals(entry.getValue())) {
-                            for (TraceElement trace : tracesFromStore) {
-                                trace.setTime(traceElement.getLastTime());
-                            }
-                            foundTrace = true;
-                            break;
-                        }
-                    }
-                    if (!foundTrace) {
-                        String chainName = String.format("chain-%d", storedTraces.size());
-                        storedTraces.put(chainName, entry.getValue());
-                    }
-                    found.add(entry.getKey());
-                }
-
-            }
-            for (Integer key : found) {
-                traceMap.remove(key);
-            }
-        }
 
         public void run() {
             String packetDirec = "IN";
@@ -405,40 +488,13 @@ public class PacketInListener implements PacketProcessingListener {
 
             ServiceFunction sfOut = null;
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
-                updateStoredChains();
+                //updateStoredChains(inTime);
 
-                if (inTime > timeFromLastTrace + TEN_SECONDS) {
-                    LOG.info("print trace information");
-                    //traceOut.clear();
-                    //traceOut = new ArrayList<>();
-                    chainUnity = 0;
-                    traceWriter.append("Start: [ ");
-                    int sizeout = storedTraces.entrySet().size();
-                    for (ConcurrentHashMap.Entry<String, List<TraceElement>> entry : storedTraces.entrySet()) {
-                        LOG.info("Traceout {} ::::    ", entry.getKey());
-                        traceWriter.append("[ ");
-                        int size = entry.getValue().size();
-                        for (TraceElement trace : entry.getValue()) {
-                            String timeTrace = String.format("{[%d] %s} - ", trace.getPktCount(), trace.getTraceHop());
-                            LOG.info(timeTrace);
-                            traceWriter.append(trace.getTraceGraph());
-                            if (--size != 0) {
-                                traceWriter.append(",");
-                            }
-                        }
-                        traceWriter.append("] ");
-                        if (--sizeout != 0) {
-                            traceWriter.append(",");
-                        }
-                    }
-                    traceWriter.append("] ");
-                    LOG.info("mapSize {} ", traceMap.size());
-                }
-                List<TraceElement> traceOut = traceMap.get(new Integer(getIpId(rawPacket)));
+                Long packetID = new Long(getPacktIdentification(rawPacket));
+                List<TraceElement> traceOut = traceMap.get(packetID);
                 if (traceOut == null) {
                     traceOut = new ArrayList<>();
                 }
-                timeFromLastTrace = inTime;
 
 
                 sfOut = topo.readSfName(outSfDpl);
@@ -447,11 +503,11 @@ public class PacketInListener implements PacketProcessingListener {
                 if (traceElement == null) {
                     LOG.error("could no find SF in the dpl {}", outSfDpl);
                 }
-                Integer idIp = new Integer(getIpId(rawPacket));
+
                 traceElement.setTime(inTime);
                 traceOut.add(traceElement);
 
-                LOG.info("[{}] -> {}", getIpId(rawPacket), traceElement.getTraceHop());
+                LOG.info("[{}] -> {} [{}]", packetID, traceElement.getTraceHop(), traceElement.getLastTime());
 
 
                 //traceWriter.append(traceElement.getTraceHop());
@@ -459,46 +515,10 @@ public class PacketInListener implements PacketProcessingListener {
                 Collections.sort(traceOut);
 
 
-                traceMap.put(idIp, traceOut);
+                traceMap.put(new Long(getPacktIdentification(rawPacket)), traceOut);
 
 
                 //packetOutSender.sendPacketToPort(nodeName, packetReceived.getMatch().getMetadata().getMetadata().toString(), packetReceived.getPayload());
-            } else if (packetReceived.getFlowCookie().getValue().equals(TRACE_EGRESS_PROBE_COOKIE)) {
-//
-//                if (traceOut.size() == 0) {
-//                    LOG.error("There is no trace information to colect timestamps");
-//                    return;
-//                }
-//
-//                sfOut = topo.readSfName(outSfDpl);
-//                if (sfOut != null) {
-//                    for (TraceElement traceElement : traceOut) {
-//                        traceElement.setTime(sff.getName().getValue(), chainUnity, 6);
-//                        traceElement.incremmentPktCount(sfOut.getName().getValue());
-//                        String timeTrace = String.format("{[%d:c(%d)]%d [%s]} - ", traceElement.timesSize(), traceElement.getPktCount(), traceElement.getLastTime(), traceElement.getSffName());
-//                        LOG.info(timeTrace);
-//                        if (traceElement.setTime(sfOut.getName().getValue(), chainUnity, inTime)) {
-//                            break;
-//                        }
-//                    }
-//                } else if ( sff != null) {
-//                    for (TraceElement traceElement : traceOut) {
-//                        if (traceElement.setTime(sff.getName().getValue(), chainUnity, inTime)) {
-//                            if (traceElement.getSffName().equals(traceOut.get(0).getSffName())) {
-//                                timeFromFirstElement = inTime;
-//                            }
-//                            if (traceElement.getSffName().equals(getLastTraceElement().getSffName()) && getLastTraceElement().timesSize() > chainUnity) {
-//                                chainUnity++;
-//                                LOG.info("Times: ------");
-//                                for (TraceElement trace : traceOut) {
-//                                    String timeTrace = String.format("{[%d:c(%d)]%d [%s]} - ", trace.timesSize(), trace.getPktCount(), trace.getLastTime(), trace.getSffName());
-//                                    LOG.info(timeTrace);
-//                                }
-//                            }
-//                            break;
-//                        }
-//                    }
-//                }
 
             }
         }

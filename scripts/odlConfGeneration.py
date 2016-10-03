@@ -31,47 +31,53 @@ class odlConf(ConfigBase):
                 self.deleteAllFlows(self.controller, self.DEFAULT_PORT, conf['CONF']['service-function-forwarder'][0]['service-node'])
                 call('ovs-ofctl -OOpenFlow13 del-flows %s' % (swTopo.name), shell=True)
 
-    def sfConf(self, name, id, type, ip, sff, vlan, mac, port, confSff):
+    def sfConf(self, name, id, type, ip, sff, vlan, macs, ports, confSff):
 
             sf = {}
             sf['name'] = name
             sf['type'] = "service-function-type:"+type
             sf['nsh-aware'] = "false"
-            sf['ip-mgmt-address'] = ip
+            sf['ip-mgmt-address'] = ip[0]
             sf['sf-data-plane-locator'] = []
-            sfDpl = {}
-            sfDpl['name'] = name+"-plane"
-            sfDpl['service-function-forwarder'] = sff
-            sfDpl['vlan-id'] = vlan
-            sfDpl['mac'] = mac
-            sfDpl['transport'] = "service-locator:mac"
-            sf['sf-data-plane-locator'].append(sfDpl)
 
+            i = 0
+            for port, mac in zip(ports, macs):
+                sfDpl = {}
+                sfDpl['name'] = name+"-plane-"+str(port)
+                sfDpl['service-function-forwarder'] = sff
+                sfDpl['vlan-id'] = vlan
+                if(i == 0):
+                    sfDpl['mac'] = mac
+                else: #if it is two arm (snort case) seting the scond arm mac equals to the src mac addres from the input
+                    sfDpl['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
+
+                i += 1
+                sfDpl['transport'] = "service-locator:mac"
+                sf['sf-data-plane-locator'].append(sfDpl)
+
+                #sff connected conf
+                sffSfDpl = {}
+                sffSfDpl['name'] = sff + "-dpl-" + name + str(port)
+                sffSfDpl['data-plane-locator'] = {}
+                sffSfDpl['data-plane-locator']['vlan-id'] = (500 + int(id))
+                sffSfDpl['data-plane-locator']['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
+                sffSfDpl['data-plane-locator']['transport'] = "service-locator:mac"
+                sffSfDpl['service-function-forwarder-ofs:ofs-port'] = {}
+                sffSfDpl['service-function-forwarder-ofs:ofs-port']['port-id'] = port
+
+                confSff['service-function-forwarder'][0]['sff-data-plane-locator'].append(sffSfDpl)
+
+                sfdict = {}
+
+                sfdict['name'] = sf['name']  #must be the same name as SF name
+                sfdict['sff-sf-data-plane-locator'] = {}
+                sfdict['sff-sf-data-plane-locator']['sf-dpl-name'] = sfDpl['name']
+                sfdict['sff-sf-data-plane-locator']['sff-dpl-name'] = sffSfDpl['name']
+
+                confSff['service-function-forwarder'][0]['service-function-dictionary'].append(sfdict)
             sfs = {}
             sfs['service-function'] = []
             sfs['service-function'].append(sf)
-
-            #sff connected conf
-            sffSfDpl = {}
-            sffSfDpl['name'] = sff + "-dpl-" + name
-            sffSfDpl['data-plane-locator'] = {}
-            sffSfDpl['data-plane-locator']['vlan-id'] = (500 + int(id))
-            sffSfDpl['data-plane-locator']['mac'] = 'FF:00:00:00:FF:%s%s' % (id, id)
-            sffSfDpl['data-plane-locator']['transport'] = "service-locator:mac"
-            sffSfDpl['service-function-forwarder-ofs:ofs-port'] = {}
-            sffSfDpl['service-function-forwarder-ofs:ofs-port']['port-id'] = port
-
-            confSff['service-function-forwarder'][0]['sff-data-plane-locator'].append(sffSfDpl)
-
-            sfdict = {}
-
-            sfdict['name'] = name
-            sfdict['sff-sf-data-plane-locator'] = {}
-            sfdict['sff-sf-data-plane-locator']['sf-dpl-name'] = sfDpl['name']
-            sfdict['sff-sf-data-plane-locator']['sff-dpl-name'] = sffSfDpl['name']
-
-            confSff['service-function-forwarder'][0]['service-function-dictionary'].append(sfdict)
-
             return sfs
 
 
@@ -162,7 +168,7 @@ class odlConf(ConfigBase):
         chainPath['service-function-path']['service-chain-name'] = name
         chainPath['service-function-path']['classifier'] = sff
         chainPath['service-function-path']['symmetric-classifier'] = sff
-        chainPath['service-function-path']['symmetric'] = "false"#"true"
+        chainPath['service-function-path']['symmetric'] = "true"#"true"
         chainPath['service-function-path']['transport-type'] = "service-locator:mac"
 
         return chainPath
@@ -187,7 +193,7 @@ class odlConf(ConfigBase):
         rsp['input'] = {}
         rsp['input']['name'] = chainPath + "-rend"
         rsp['input']['parent-service-function-path'] = chainPath
-        rsp['input']['symmetric'] = "false"#"true"
+        rsp['input']['symmetric'] = "true"#"true"
 
         return rsp
 

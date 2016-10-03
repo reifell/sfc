@@ -13,7 +13,13 @@
 #include <net/if.h>
 #include <netinet/ether.h>
 
-void ProcessPacket(unsigned char* , int);
+#define ETHER_TYPE	0x0800
+#define ICMP  1
+#define TCP 6
+#define UDP 17
+#define IGMP 2
+
+int ProcessPacket(unsigned char* , int);
 unsigned char * getMacAddress (char*);
 
 int tcp=0,udp=0,icmp=0,others=0,igmp=0,total=0;
@@ -82,7 +88,7 @@ int main(int argc, char **argv)
         //Receive a packet
 
         data_size = recvfrom(sock_raw , buffer , 65536 , 0 ,(struct sockaddr *) &saddr , (socklen_t*)&saddr_size);
-        printf("MacPkt : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n" , eh->ether_dhost[0], eh->ether_dhost[1], eh->ether_dhost[2], eh->ether_dhost[3], eh->ether_dhost[4], eh->ether_dhost[5]);
+        printf("MacPkt src: %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n" , eh->ether_shost[0], eh->ether_shost[1], eh->ether_shost[2], eh->ether_shost[3], eh->ether_shost[4], eh->ether_shost[5]);
         printf("MacIface : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n" , mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         fflush(stdout);
         if (eh->ether_dhost[0] == mac[0] &&
@@ -92,7 +98,7 @@ int main(int argc, char **argv)
             eh->ether_dhost[4] == mac[4] &&
             eh->ether_dhost[5] == mac[5]) {
                 printf("Correct destination MAC address\n");
-                ProcessPacket(buffer , data_size);
+                int ipDst = ProcessPacket(buffer , data_size);
                 if(data_size < 0 ) {
                     printf("Recvfrom error , failed to get packets\n");
                     return 1;
@@ -100,12 +106,25 @@ int main(int argc, char **argv)
                 else {
                     printf("Received %d bytes\n",data_size);
 
-                    eh->ether_dhost[0] = 0;
-                    eh->ether_dhost[1] = 0;
-                    eh->ether_dhost[2] = 0;
-                    eh->ether_dhost[3] = 0;
-                    eh->ether_dhost[4] = 0;
-                    eh->ether_dhost[5] = 2;
+                    printf("ip value dst %d\n", ipDst);
+
+                    if (ipDst == 33554442) {
+                        eh->ether_dhost[0] = 0;
+                        eh->ether_dhost[1] = 0;
+                        eh->ether_dhost[2] = 0;
+                        eh->ether_dhost[3] = 0;
+                        eh->ether_dhost[4] = 0;
+                        eh->ether_dhost[5] = 2;
+                    } else if(ipDst == 16777226) {
+                        eh->ether_dhost[0] = 0;
+                        eh->ether_dhost[1] = 0;
+                        eh->ether_dhost[2] = 0;
+                        eh->ether_dhost[3] = 0;
+                        eh->ether_dhost[4] = 0;
+                        eh->ether_dhost[5] = 1;
+                    } else {
+                        continue;
+                    }
 
 
                     eh->ether_shost[0] = mac[0];
@@ -151,39 +170,44 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void ProcessPacket(unsigned char* buffer, int size)
+int ProcessPacket(unsigned char* buffer, int size)
 {
     //Get the IP Header part of this packet
-    struct iphdr *iph = (struct iphdr*)buffer;
     ++total;
+    struct iphdr *iph = (struct iphdr *) (buffer + sizeof(struct ether_header));
+    //struct udphdr *udph = (struct udphdr *) (buffer + sizeof(struct iphdr) + sizeof(struct ether_header));
+
     switch (iph->protocol) //Check the Protocol and do accordingly...
     {
-        case 1:  //ICMP Protocol
+        case ICMP:  //ICMP Protocol
             ++icmp;
             //PrintIcmpPacket(Buffer,Size);
             break;
-         
-        case 2:  //IGMP Protocol
+
+        case IGMP:  //IGMP Protocol
             ++igmp;
             break;
-         
-        case 6:  //TCP Protocol
+
+        case TCP:  //TCP Protocol
             ++tcp;
             //print_tcp_packet(buffer , size);
             break;
-         
-        case 17: //UDP Protocol
+
+        case UDP: //UDP Protocol
             ++udp;
             //print_udp_packet(buffer , size);
             //Receive a packet
+            //return udph->dest;
             break;
-         
+
         default: //Some Other Protocol like ARP etc.
             ++others;
             break;
     }
-    printf("TCP : %d   UDP : %d   ICMP : %d   IGMP : %d   Others : %d   Total : %d\r",tcp,udp,icmp,igmp,others,total);
+    //iph->ttl--;
+    printf("TCP : %d   UDP : %d   ICMP : %d   IGMP : %d   Others : %d   Total : %d\n",tcp,udp,icmp,igmp,others,total);
     fflush(stdout);
+    return iph->daddr;
 }
 
 unsigned char * getMacAddress (char *iface) {
