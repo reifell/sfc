@@ -11,7 +11,7 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev1
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunction;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 
-import java.util.ArrayList;
+import java.util.*;
 
 /**
  * Created by rafael on 7/18/16.
@@ -24,7 +24,11 @@ public class TraceElement implements Comparable<TraceElement> {
     private ArrayList<Long> timestamp = new ArrayList<>();
     private String traceHop;
     private ArrayList<Integer> hopDelay = new ArrayList<>();
+    private ArrayList<TimeAndHop> timeAndHops = new ArrayList<>();
     private int ttl = 0;
+    private TreeMap<Long, Integer> plotDelay = new TreeMap<>();
+    private Long lastPlot = new Long(0);
+    private long inTime;
 
     TraceElement (String sffName, String sfName, int in, int out, int ttl) {
         this.sffName = sffName;
@@ -35,6 +39,16 @@ public class TraceElement implements Comparable<TraceElement> {
 
         buildTraceOut();
     }
+
+    private class TimeAndHop {
+        TimeAndHop(long time, int hop) {
+            timestamp = time;
+            hopDelay = hop;
+        }
+        long timestamp;
+        int hopDelay;
+    }
+
     TraceElement() {}
 
     static public TraceElement setTraceNode(ServiceFunctionForwarder sffNode, ServiceFunction sfNone, int in, int out, int ttl) {
@@ -69,38 +83,72 @@ public class TraceElement implements Comparable<TraceElement> {
         return String.format("[%d, %d, \"%s\", \"%s\", %d]", ingressPort, egressPort, sffName, sfName, getPktCount());
     }
 
-    public void setTime(long timestamp) {
-        this.timestamp.add(timestamp);
+    public void setInTime(long timestamp) {
+        this.inTime = timestamp;
     }
 
-    public void setHopDelay(Integer delay) {
-        this.hopDelay.add(delay);
+    public long getInTime() {
+        return this.inTime;
     }
-    public ArrayList<Integer> getHopDelay() {
-        return this.hopDelay;
+//
+//    public void setHopDelay(Integer delay) {
+//        this.hopDelay.add(delay);
+//    }
+
+    public void setTimeAndHopDelay(long timestamp, int delay) {
+        timeAndHops.add(new TimeAndHop(timestamp, delay));
+    }
+
+    public String getPlot() {
+        StringBuilder plot = new StringBuilder();
+        float sum = 0;
+        int i = 0;
+        Long initialTime = new Long(0);
+        if (!plotDelay.isEmpty()) {
+            initialTime = plotDelay.firstKey();
+        }
+        for (Map.Entry<Long, Integer> element : plotDelay.entrySet()) {
+            sum += element.getValue();
+            if (i == 10) {
+                float avg = sum / (float)10;
+                plot.append(String.format("%d; %.2f\n", (element.getKey() - initialTime), avg));
+                sum = 0;
+                i = 0;
+            }
+            i++;
+        }
+        if (!plotDelay.isEmpty()) {
+            lastPlot = plotDelay.lastKey();
+            plotDelay.clear();
+            return plot.toString();
+        } else {
+            return null;
+        }
     }
 
     public float getHopDelayAverage() {
         float sum = 0;
-        for (Integer d : hopDelay) sum += d;
-        if (hopDelay.size() == 0) return sum;
-        return sum / (float)hopDelay.size();
+        for (TimeAndHop d : timeAndHops) {
+            sum += d.hopDelay;
+            if (d.timestamp > lastPlot) {
+                plotDelay.put(d.timestamp, d.hopDelay);
+            }
+        }
+        if (timeAndHops.size() == 0) return sum;
+        return sum / (float)timeAndHops.size();
     }
     public long getPktCount() {
-        return timestamp.size();
+        return timeAndHops.size();
     }
 
     public long getLastTime() {
-        if (timestamp.size() == 0) {
+        if (timeAndHops.size() == 0) {
             return 0;
         } else {
-            return timestamp.get(timestamp.size() - 1);
+            return timeAndHops.get(timeAndHops.size() - 1).timestamp;
         }
     }
 
-    public ArrayList<Long> getTimestamp() {
-        return timestamp;
-    }
 
     @Override
     public int compareTo(TraceElement traceElement) {
@@ -139,11 +187,6 @@ public class TraceElement implements Comparable<TraceElement> {
     public String getSffName() {
         return sffName;
     }
-
-    public long timesSize() {
-        return timestamp.size();
-    }
-
 
     public void setTraceHop(String trace) {
         this.traceHop = trace;

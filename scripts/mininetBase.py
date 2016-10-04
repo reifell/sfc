@@ -5,10 +5,12 @@ from mininet.cli import CLI
 from mininet.link import Intf
 from mininet.log import setLogLevel, info
 from subprocess import call
-from collections import defaultdict
+import subprocess
 from odlConfGeneration import odlConf
-import json
+import re
 import time
+
+
 class sfc():
     YOUR_CONTROLLER_IP = '192.168.100.103'
     net = None
@@ -38,6 +40,8 @@ class sfc():
 
         #deploy chain
         self.deploySfc()
+
+        self.disableOffLoadFromIfaces()
 
         CLI(self.net)
 
@@ -277,6 +281,18 @@ class sfc():
             #        call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,icmp,nw_src=10.0.0.1,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
        #             call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1001,udp,nw_dst=10.0.0.2,udp_dst=5533,actions=mod_nw_ecn=3,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
                     #call('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF22FF,table=0,priority=1004,in_port=2,dl_dst=00:00:00:00:00:01,actions=output:1' %(scf), shell=True)
+
+    def disableOffLoadFromIfaces(self):
+        p = subprocess.Popen(['tcpdump', '-D'], stdout=subprocess.PIPE,  stderr = subprocess.PIPE)
+        out, err = p.communicate()
+        ifaces = out.split("\n")
+        for iface in ifaces:
+            if re.match("[0-9]{1,2}\.SFF.+", iface):
+                foundIface = iface.split(".")[1]
+                call('ethtool --offload  %s  rx off  tx off' %foundIface, stdout=None, shell=True)
+
+
+
     def cleanProcess(self):
         for cmds in self.popens.values():
             for cmd in cmds:
