@@ -40,13 +40,13 @@ public class TraceElement implements Comparable<TraceElement> {
         buildTraceOut();
     }
 
-    private class TimeAndHop {
+    public class TimeAndHop {
         TimeAndHop(long time, int hop) {
             timestamp = time;
             hopDelay = hop;
         }
-        long timestamp;
-        int hopDelay;
+        public long timestamp;
+        public int hopDelay;
     }
 
     TraceElement() {}
@@ -126,6 +126,10 @@ public class TraceElement implements Comparable<TraceElement> {
         }
     }
 
+    public ArrayList<TimeAndHop> getTimeAndHop() {
+        return timeAndHops;
+    }
+
     public float getHopDelayAverage() {
         float sum = 0;
         for (TimeAndHop d : timeAndHops) {
@@ -156,9 +160,10 @@ public class TraceElement implements Comparable<TraceElement> {
         TraceElement p2 =  this;
         int ret = -1;
 
-        if (p1.ttl == p2.ttl) {
-            ret = 0;
-        } else if (p1.ttl > p2.ttl) {
+        //if (p1.ttl == p2.ttl) {
+        //    ret = 0;
+        //} else
+        if (p1.ttl > p2.ttl) {
             ret = 1;
         } else if (p1.ttl < p2.ttl) {
             ret = -1;

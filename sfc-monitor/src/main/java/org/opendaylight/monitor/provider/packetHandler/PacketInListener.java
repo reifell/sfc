@@ -96,9 +96,9 @@ public class PacketInListener implements PacketProcessingListener {
     int chainUnity = 0;
 
     //private List<TraceElement> traceOut = new ArrayList<>();
-    private ConcurrentHashMap<Long, Set<TraceElement>> traceMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, List<TraceElement>> traceMap = new ConcurrentHashMap<>();
 
-    private ConcurrentHashMap<String,  Set<TraceElement>> storedTraces = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String,  List<TraceElement>> storedTraces = new ConcurrentHashMap<>();
 
 
     public void close() throws ExecutionException, InterruptedException {
@@ -302,7 +302,7 @@ public class PacketInListener implements PacketProcessingListener {
         chainUnity = 0;
         traceWriter.append("Start: [ ");
         int sizeout = storedTraces.entrySet().size();
-        for (ConcurrentHashMap.Entry<String, Set<TraceElement>> entry : storedTraces.entrySet()) {
+        for (ConcurrentHashMap.Entry<String, List<TraceElement>> entry : storedTraces.entrySet()) {
             LOG.info("Traceout {} ::::    ", entry.getKey());
             traceWriter.append("[ ");
             int size = entry.getValue().size();
@@ -314,8 +314,8 @@ public class PacketInListener implements PacketProcessingListener {
                     traceWriter.append(",");
                 }
 //                            String hopDStr = null;
-//                            for (Integer hopD : trace.getHopDelay()) {
-//                                hopDStr += String.format("%d, ", hopD);
+//                            for (TraceElement.TimeAndHop hopD : trace.getTimeAndHop()) {
+//                                hopDStr += String.format("%d, ", hopD.hopDelay);
 //                            }
 //                            LOG.info(" delays [{}]", hopDStr);
                 String plotter = trace.getPlot();
@@ -340,9 +340,11 @@ public class PacketInListener implements PacketProcessingListener {
 
         boolean foundTrace = false;
         ArrayList<Long> found = new ArrayList<>();
-        for (ConcurrentHashMap.Entry<Long, Set<TraceElement>> traceMapElement : traceMap.entrySet()) {
-
-            for (Set<TraceElement> tracesFromStore : storedTraces.values()) {
+        for (ConcurrentHashMap.Entry<Long, List<TraceElement>> traceMapElement : traceMap.entrySet()) {
+            //sort by ttl to keep consistency with trace hops
+            Collections.sort(traceMapElement.getValue());
+            for (List<TraceElement> tracesFromStore : storedTraces.values()) {
+                //compare the ordered trace using the name of each hop
                 if (tracesFromStore.equals(traceMapElement.getValue())) {
                     //update timestamp from each hop
                     Long previousHopDelay = (long) 0;
@@ -368,7 +370,7 @@ public class PacketInListener implements PacketProcessingListener {
             }
             if (!foundTrace) {
                 String chainName = String.format("chain-%d", storedTraces.size());
-                storedTraces.put(chainName, traceMapElement.getValue());
+                storedTraces.putIfAbsent(chainName, traceMapElement.getValue());
             }
             found.add(traceMapElement.getKey());
 
@@ -421,17 +423,17 @@ public class PacketInListener implements PacketProcessingListener {
             }
 
             // Get the SrcIp and DstIp Addresses
-            String pktSrcIpStr = getSrcIpStr(rawPacket);
-            if (pktSrcIpStr == null) {
-                LOG.error("PacketInListener Cant get Src IP address, discarding packet");
-                return;
-            }
-
-            String pktDstIpStr = getDstIpStr(rawPacket);
-            if (pktDstIpStr == null) {
-                LOG.error("PacketInListener Cant get Src IP address, discarding packet");
-                return;
-            }
+//            String pktSrcIpStr = getSrcIpStr(rawPacket);
+//            if (pktSrcIpStr == null) {
+//                LOG.error("PacketInListener Cant get Src IP address, discarding packet");
+//                return;
+//            }
+//
+//            String pktDstIpStr = getDstIpStr(rawPacket);
+//            if (pktDstIpStr == null) {
+//                LOG.error("PacketInListener Cant get Src IP address, discarding packet");
+//                return;
+//            }
 
 
             // Get the metadata
@@ -471,10 +473,6 @@ public class PacketInListener implements PacketProcessingListener {
 
             TopologyHandler topo = new TopologyHandler();
 
-
-            //LOG.info("+++++ packet {} time [{}]", packetDirec, inTime);
-
-            //LOG.info("+++++ NodeName [{}] => {}", nodeName, nodeConector.getValue());
             TerminationPoint tp = topo.readTerminationPoint(nodeName, nodeConector.getValue());
 
 
@@ -499,16 +497,16 @@ public class PacketInListener implements PacketProcessingListener {
                 return;
             }
             String parts[] = tp.getTpId().getValue().split(":");
-            String inSfDpl = topo.readSfDplFromSff(sff, parts[2]);
+            //String inSfDpl = topo.readSfDplFromSff(sff, parts[2]);
 
             ServiceFunction sfOut = null;
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
                 //updateStoredChains(inTime);
 
                 Long packetID = new Long(getPacktIdentification(rawPacket));
-                Set<TraceElement> traceOut = traceMap.get(packetID);
+                List<TraceElement> traceOut = traceMap.get(packetID);
                 if (traceOut == null) {
-                    traceMap.putIfAbsent(packetID, new ConcurrentSkipListSet<TraceElement>());
+                    traceMap.putIfAbsent(packetID, Collections.synchronizedList(new ArrayList<TraceElement>()));
                     traceOut = traceMap.get(packetID);
                 }
 
