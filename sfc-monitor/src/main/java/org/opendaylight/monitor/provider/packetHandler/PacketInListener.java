@@ -69,7 +69,7 @@ public class PacketInListener implements PacketProcessingListener {
             new BigInteger("FF44FF", COOKIE_BIGINT_HEX_RADIX);
 
     private static final int SCHEDULED_THREAD_POOL_SIZE = 1;
-    private static final int QUEUE_SIZE = 1000;
+    private static final int QUEUE_SIZE = 10000;
     private static final int ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS = 300;
     private static final long SHUTDOWN_TIME = 5;
 
@@ -96,9 +96,9 @@ public class PacketInListener implements PacketProcessingListener {
     int chainUnity = 0;
 
     //private List<TraceElement> traceOut = new ArrayList<>();
-    private ConcurrentHashMap<Long, List<TraceElement>> traceMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Set<TraceElement>> traceMap = new ConcurrentHashMap<>();
 
-    private ConcurrentHashMap<String,  List<TraceElement>> storedTraces = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String,  Set<TraceElement>> storedTraces = new ConcurrentHashMap<>();
 
 
     public void close() throws ExecutionException, InterruptedException {
@@ -117,7 +117,7 @@ public class PacketInListener implements PacketProcessingListener {
     public PacketInListener(NotificationProviderService notificationProviderService, PacketOutSender packetOutSender, RpcProviderRegistry rpcProviderRegistry) {
 
         this.packetOutSender = packetOutSender;
-        this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, 50,
+        this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, 500,
                 ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(QUEUE_SIZE));
 
@@ -302,7 +302,7 @@ public class PacketInListener implements PacketProcessingListener {
         chainUnity = 0;
         traceWriter.append("Start: [ ");
         int sizeout = storedTraces.entrySet().size();
-        for (ConcurrentHashMap.Entry<String, List<TraceElement>> entry : storedTraces.entrySet()) {
+        for (ConcurrentHashMap.Entry<String, Set<TraceElement>> entry : storedTraces.entrySet()) {
             LOG.info("Traceout {} ::::    ", entry.getKey());
             traceWriter.append("[ ");
             int size = entry.getValue().size();
@@ -340,16 +340,19 @@ public class PacketInListener implements PacketProcessingListener {
 
         boolean foundTrace = false;
         ArrayList<Long> found = new ArrayList<>();
-        for (ConcurrentHashMap.Entry<Long, List<TraceElement>> entry : traceMap.entrySet()) {
+        for (ConcurrentHashMap.Entry<Long, Set<TraceElement>> traceMapElement : traceMap.entrySet()) {
 
-            for (List<TraceElement> tracesFromStore : storedTraces.values()) {
-                if (tracesFromStore.equals(entry.getValue())) {
+            for (Set<TraceElement> tracesFromStore : storedTraces.values()) {
+                if (tracesFromStore.equals(traceMapElement.getValue())) {
                     //update timestamp from each hop
-                    int i = 0;
                     Long previousHopDelay = (long) 0;
+
+                    Iterator<TraceElement> itTrace = traceMapElement.getValue().iterator();
+                    //iterate in the stored chain to add new timestamps from traceMap
                     for (TraceElement trace : tracesFromStore) {
+                        TraceElement traceElement = itTrace.next();
                         Integer hopDelay;
-                        Long hopTime = entry.getValue().get(i).getInTime();
+                        Long hopTime = traceElement.getInTime();
                         if (previousHopDelay == 0) {
                             hopDelay = 0;
                         } else {
@@ -358,7 +361,6 @@ public class PacketInListener implements PacketProcessingListener {
                         }
                         trace.setTimeAndHopDelay(hopTime, hopDelay);
                         previousHopDelay = hopTime;
-                        i++;
                     }
                     foundTrace = true;
                     break;
@@ -366,9 +368,9 @@ public class PacketInListener implements PacketProcessingListener {
             }
             if (!foundTrace) {
                 String chainName = String.format("chain-%d", storedTraces.size());
-                storedTraces.put(chainName, entry.getValue());
+                storedTraces.put(chainName, traceMapElement.getValue());
             }
-            found.add(entry.getKey());
+            found.add(traceMapElement.getKey());
 
         }
         for (Long key : found) {
@@ -478,6 +480,7 @@ public class PacketInListener implements PacketProcessingListener {
 
             if (tp == null) {
                 LOG.error("Not found Termination point [{}]", nodeName);
+                return;
             }
 
             ServiceFunctionForwarder sff = topo.readSFF(nodeName);
@@ -492,6 +495,9 @@ public class PacketInListener implements PacketProcessingListener {
             }
 
             // get input from previous SF
+            if (tp.getTpId() == null) {
+                return;
+            }
             String parts[] = tp.getTpId().getValue().split(":");
             String inSfDpl = topo.readSfDplFromSff(sff, parts[2]);
 
@@ -500,9 +506,10 @@ public class PacketInListener implements PacketProcessingListener {
                 //updateStoredChains(inTime);
 
                 Long packetID = new Long(getPacktIdentification(rawPacket));
-                List<TraceElement> traceOut = traceMap.get(packetID);
+                Set<TraceElement> traceOut = traceMap.get(packetID);
                 if (traceOut == null) {
-                    traceOut = new ArrayList<>();
+                    traceMap.putIfAbsent(packetID, new ConcurrentSkipListSet<TraceElement>());
+                    traceOut = traceMap.get(packetID);
                 }
 
 
@@ -521,10 +528,8 @@ public class PacketInListener implements PacketProcessingListener {
 
                 //traceWriter.append(traceElement.getTraceHop());
 
-                Collections.sort(traceOut);
+                //Collections.sort(traceOut);
 
-
-                traceMap.put(new Long(getPacktIdentification(rawPacket)), traceOut);
 
 
                 //packetOutSender.sendPacketToPort(nodeName, packetReceived.getMatch().getMetadata().getMetadata().toString(), packetReceived.getPayload());
