@@ -16,7 +16,7 @@ import java.util.*;
 /**
  * Created by rafael on 7/18/16.
  */
-public class TraceElement implements Comparable<TraceElement> {
+public class TraceElement  {
     private String sffName = null;
     private String sfName = null;
     private int ingressPort = 0;
@@ -42,8 +42,8 @@ public class TraceElement implements Comparable<TraceElement> {
 
     public class TimeAndHop {
         TimeAndHop(long time, int hop) {
-            timestamp = time;
-            hopDelay = hop;
+            this.timestamp = time;
+            this.hopDelay = hop;
         }
         public long timestamp;
         public int hopDelay;
@@ -107,11 +107,13 @@ public class TraceElement implements Comparable<TraceElement> {
         if (!plotDelay.isEmpty()) {
             initialTime = plotDelay.firstKey();
         }
+        int nStepInTheGraph = plotDelay.size()/500;
+        if (nStepInTheGraph < 1) nStepInTheGraph = 1;
         for (Map.Entry<Long, Integer> element : plotDelay.entrySet()) {
             sum += element.getValue();
-            if (i == 10) {
-                float avg = sum / (float)10;
-                plot.append(String.format("%d; %.2f\n", (element.getKey() - initialTime), avg));
+            if (i == nStepInTheGraph) {
+                float avg = sum / (float)nStepInTheGraph;
+                plot.append(String.format("%.2f; %.2f\n", (float)(element.getKey() - initialTime)/(float)1000, avg));
                 sum = 0;
                 i = 0;
             }
@@ -133,7 +135,7 @@ public class TraceElement implements Comparable<TraceElement> {
     public float getHopDelayAverage() {
         float sum = 0;
         for (TimeAndHop d : timeAndHops) {
-            sum += d.hopDelay;
+            sum += (float)d.hopDelay;
             if (d.timestamp > lastPlot) {
                 plotDelay.put(d.timestamp, d.hopDelay);
             }
@@ -154,21 +156,22 @@ public class TraceElement implements Comparable<TraceElement> {
     }
 
 
-    @Override
-    public int compareTo(TraceElement traceElement) {
-        TraceElement p1 =  traceElement;
-        TraceElement p2 =  this;
-        int ret = -1;
+    public static class TraceEmentComparator implements Comparator<TraceElement> {
+        @Override
+        public int compare(TraceElement p1, TraceElement p2) {
+//            TraceElement p1 = traceElement;
+//            TraceElement p2 = this;
+            int ret = -1;
 
-        //if (p1.ttl == p2.ttl) {
-        //    ret = 0;
-        //} else
-        if (p1.ttl > p2.ttl) {
-            ret = 1;
-        } else if (p1.ttl < p2.ttl) {
-            ret = -1;
+            if (p1.ttl == p2.ttl) {
+                ret = 0;
+            } else if (p1.ttl > p2.ttl) {
+                ret = -1;
+            } else if (p1.ttl < p2.ttl) {
+                ret = 1;
+            }
+            return ret;
         }
-        return ret;
     }
 
     @Override
@@ -189,6 +192,12 @@ public class TraceElement implements Comparable<TraceElement> {
         return false;
     }
 
+    @Override
+    public int hashCode() {
+        int result = sffName.hashCode();
+        result = 31 * result + sfName.hashCode();
+        return result;
+    }
     public String getSffName() {
         return sffName;
     }

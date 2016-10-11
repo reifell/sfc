@@ -81,15 +81,17 @@ public class PacketInListener implements PacketProcessingListener {
 
     private static PacketInListener packetInListenerObj = null;
 
+    private TraceWriter traceLogWriter = null;
     private TraceWriter traceWriter = null;
     private TraceWriter plotWriter = null;
+    private int nFiles = 0;
 
 
     private PacketOutSender packetOutSender = null;
 
     ThreadPoolExecutor threadPoolExecutorService = null;
 
-    long timeFromFirstElement = 0;
+    long timetoUpdate = 0;
 
     long timeFromLastTrace = 0;
 
@@ -112,6 +114,7 @@ public class PacketInListener implements PacketProcessingListener {
         }
         traceWriter.close();
         plotWriter.close();
+        traceLogWriter.close();
     }
 
     public PacketInListener(NotificationProviderService notificationProviderService, PacketOutSender packetOutSender, RpcProviderRegistry rpcProviderRegistry) {
@@ -136,11 +139,13 @@ public class PacketInListener implements PacketProcessingListener {
         try {
             traceWriter = new TraceWriter(new File("/tmp/trace"));
             plotWriter = new TraceWriter(new File("/tmp/plot.csv"));
+            traceLogWriter = new TraceWriter(new File("/tmp/trace.log"));
         } catch (IOException e) {
             LOG.error("Error open trace file");
         }
         traceWriter.open();
         plotWriter.open();
+        traceLogWriter.open();
 
     }
 
@@ -292,6 +297,20 @@ public class PacketInListener implements PacketProcessingListener {
     public void cleanTraceMaps() {
         traceMap.clear();
         storedTraces.clear();
+        plotWriter.close();
+        traceLogWriter.close();
+        nFiles++;
+        String FileName = String.format("/tmp/plot-%d.csv", nFiles);
+        String logFileName = String.format("/tmp/trace-%d.log", nFiles);
+        try {
+            plotWriter = new TraceWriter(new File(FileName));
+            plotWriter.open();
+            traceLogWriter = new TraceWriter(new File(logFileName));
+            traceLogWriter.open();
+
+        } catch (IOException e) {
+            LOG.error("Error open plot file {}", FileName);
+        }
     }
 
     public void getTrace() {
@@ -303,32 +322,50 @@ public class PacketInListener implements PacketProcessingListener {
         traceWriter.append("Start: [ ");
         int sizeout = storedTraces.entrySet().size();
         for (ConcurrentHashMap.Entry<String, List<TraceElement>> entry : storedTraces.entrySet()) {
-            LOG.info("Traceout {} ::::    ", entry.getKey());
+            LOG.info(":::::::::::::::: Traceout {} ::::::::::::::    ", entry.getKey());
             traceWriter.append("[ ");
             int size = entry.getValue().size();
+            int i = 0;
             for (TraceElement trace : entry.getValue()) {
-                String traceFormat = String.format("{[%d] %s} - (%.2f) %d", trace.getPktCount(), trace.getTraceHop(), trace.getHopDelayAverage(), trace.getLastTime());
-                LOG.info(traceFormat);
+
+                i++;
                 traceWriter.append(trace.getTraceGraph());
                 if (--size != 0) {
                     traceWriter.append(",");
+                }
+                traceWriter.append("] ");
+                if (--sizeout != 0) {
+                    traceWriter.append(",");
+                }
+
+                //skip first all zeros computation for hops delay
+                if( i == 1) {
+                    String traceFormat = String.format("{[%d] %s} - <%d>", trace.getPktCount(), trace.getTraceHop(), trace.getLastTime());
+                    LOG.info(traceFormat);
+                    String plotElement = String.format("[%s, %s]\n", entry.getKey(), trace.getTraceHop());
+                    plotWriter.append(plotElement);
+                    continue;
                 }
 //                            String hopDStr = null;
 //                            for (TraceElement.TimeAndHop hopD : trace.getTimeAndHop()) {
 //                                hopDStr += String.format("%d, ", hopD.hopDelay);
 //                            }
 //                            LOG.info(" delays [{}]", hopDStr);
+                String avfHopDelay = String.format("avg hop delay (%.2f)", trace.getHopDelayAverage());
+                LOG.info(avfHopDelay);
+
+                String traceFormat = String.format("{[%d] %s} - <%d>", trace.getPktCount(), trace.getTraceHop(), trace.getLastTime());
+                LOG.info(traceFormat);
+
                 String plotter = trace.getPlot();
                 if (plotter != null) {
-                    String plotElement = String.format("[%s, %s]\n", entry.getKey(), trace.getTraceHop());
-                    plotWriter.append(plotElement);
                     plotWriter.append(plotter);
                 }
+                String plotElement = String.format("[%s, %s]\n", entry.getKey(), trace.getTraceHop());
+                plotWriter.append(plotElement);
+
             }
-            traceWriter.append("] ");
-            if (--sizeout != 0) {
-                traceWriter.append(",");
-            }
+
         }
         traceWriter.append("] ");
         LOG.info("mapSize {} ", traceMap.size());
@@ -338,42 +375,49 @@ public class PacketInListener implements PacketProcessingListener {
 
     private void updateStoredChains(long inTime) {
 
-        boolean foundTrace = false;
         ArrayList<Long> found = new ArrayList<>();
         for (ConcurrentHashMap.Entry<Long, List<TraceElement>> traceMapElement : traceMap.entrySet()) {
-            //sort by ttl to keep consistency with trace hops
-            Collections.sort(traceMapElement.getValue());
-            for (List<TraceElement> tracesFromStore : storedTraces.values()) {
-                //compare the ordered trace using the name of each hop
-                if (tracesFromStore.equals(traceMapElement.getValue())) {
-                    //update timestamp from each hop
-                    Long previousHopDelay = (long) 0;
 
-                    Iterator<TraceElement> itTrace = traceMapElement.getValue().iterator();
-                    //iterate in the stored chain to add new timestamps from traceMap
-                    for (TraceElement trace : tracesFromStore) {
-                        TraceElement traceElement = itTrace.next();
-                        Integer hopDelay;
-                        Long hopTime = traceElement.getInTime();
-                        if (previousHopDelay == 0) {
-                            hopDelay = 0;
-                        } else {
-                            hopDelay = (int) (long) (hopTime - previousHopDelay);
-                            if (hopDelay < 0) hopDelay = 0;
+            int size = traceMapElement.getValue().size();
+            if (size == 0) continue;
+            if (inTime > traceMapElement.getValue().get(size -1).getInTime() + TEN_SECONDS ||
+                    inTime > timeFromLastTrace + TREE_SECONDS) {
+                boolean foundTrace = false;
+                //sort by ttl to keep consistency with trace hops
+                Collections.sort(traceMapElement.getValue(), new TraceElement.TraceEmentComparator());
+
+                for (List<TraceElement> tracesFromStore : storedTraces.values()) {
+
+                    //compare the ordered trace using the name of each hop
+                    if (tracesFromStore.equals(traceMapElement.getValue())) {
+                        //update timestamp from each hop
+                        long previousHopDelay = 0;
+
+                        Iterator<TraceElement> itTrace = traceMapElement.getValue().iterator();
+                        //iterate in the stored chain to add new timestamps from traceMap
+                        for (TraceElement trace : tracesFromStore) {
+                            TraceElement traceElement = itTrace.next();
+                            int hopDelay;
+                            long hopTime = traceElement.getInTime();
+                            if (previousHopDelay == 0) {
+                                hopDelay = 0;
+                            } else {
+                                hopDelay = (int) (hopTime - previousHopDelay);
+                                if (hopDelay < 0) hopDelay = 0;
+                            }
+                            trace.setTimeAndHopDelay(hopTime, hopDelay);
+                            previousHopDelay = hopTime;
                         }
-                        trace.setTimeAndHopDelay(hopTime, hopDelay);
-                        previousHopDelay = hopTime;
+                        foundTrace = true;
+                        break;
                     }
-                    foundTrace = true;
-                    break;
                 }
+                if (!foundTrace) {
+                    String chainName = String.format("chain-%d", storedTraces.size());
+                    storedTraces.putIfAbsent(chainName, traceMapElement.getValue());
+                }
+                found.add(traceMapElement.getKey());
             }
-            if (!foundTrace) {
-                String chainName = String.format("chain-%d", storedTraces.size());
-                storedTraces.putIfAbsent(chainName, traceMapElement.getValue());
-            }
-            found.add(traceMapElement.getKey());
-
         }
         for (Long key : found) {
             traceMap.remove(key);
@@ -501,6 +545,7 @@ public class PacketInListener implements PacketProcessingListener {
 
             ServiceFunction sfOut = null;
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
+                timeFromLastTrace = inTime;
                 //updateStoredChains(inTime);
 
                 Long packetID = new Long(getPacktIdentification(rawPacket));
@@ -521,8 +566,9 @@ public class PacketInListener implements PacketProcessingListener {
                 traceElement.setInTime(inTime);
                 traceOut.add(traceElement);
 
-                LOG.info("[{}] -> {} [{}]", packetID, traceElement.getTraceHop(), traceElement.getInTime());
-
+                String logTrace = String.format("size M %d, T %d -> [%d] -> %s [%d] \n",
+                        traceMap.size(), traceOut.size(), packetID, traceElement.getTraceHop(), traceElement.getInTime());
+                traceLogWriter.append(logTrace);
 
                 //traceWriter.append(traceElement.getTraceHop());
 
@@ -531,6 +577,12 @@ public class PacketInListener implements PacketProcessingListener {
 
 
                 //packetOutSender.sendPacketToPort(nodeName, packetReceived.getMatch().getMetadata().getMetadata().toString(), packetReceived.getPayload());
+                if (timetoUpdate == 0) {
+                    timetoUpdate = inTime;
+                } else if ( inTime  >  timetoUpdate + TEN_SECONDS) {
+                    updateStoredChains(inTime);
+                    timetoUpdate = inTime;
+                }
 
             }
         }
