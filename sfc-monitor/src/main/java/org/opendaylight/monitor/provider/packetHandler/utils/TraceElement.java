@@ -21,9 +21,7 @@ public class TraceElement  {
     private String sfName = null;
     private int ingressPort = 0;
     private int egressPort = 0;
-    private ArrayList<Long> timestamp = new ArrayList<>();
     private String traceHop;
-    private ArrayList<Integer> hopDelay = new ArrayList<>();
     private ArrayList<TimeAndHop> timeAndHops = new ArrayList<>();
     private int ttl = 0;
     private TreeMap<Long, Integer> plotDelay = new TreeMap<>();
@@ -90,10 +88,6 @@ public class TraceElement  {
     public long getInTime() {
         return this.inTime;
     }
-//
-//    public void setHopDelay(Integer delay) {
-//        this.hopDelay.add(delay);
-//    }
 
     public void setTimeAndHopDelay(long timestamp, int delay) {
         timeAndHops.add(new TimeAndHop(timestamp, delay));
@@ -190,6 +184,32 @@ public class TraceElement  {
             }
         }
         return false;
+    }
+
+    public static boolean isSameChain(Set<TraceElement> p1, Set<TraceElement> p2) {
+        if (p1 == null || p2 == null) return false;
+        if (p1.size() != p2.size()) {
+            return false;
+        }
+        Iterator<TraceElement> it1 = p1.iterator();
+        Iterator<TraceElement> it2 = p2.iterator();
+        while (it1.hasNext()) {
+            TraceElement element1 = it1.next();
+            TraceElement element2 = it2.next();
+
+            if (element1.sffName.equals(element2.sffName)) {
+                if (element1.sfName == null && (element2.sfName) == null) {
+                    continue;
+                } else if (element1.sfName != null) {
+                    if (element1.sfName.equals(element2.sfName)) {
+                        continue;
+                    }
+                }
+                return false;
+            }
+            return false;
+        }
+        return true;
     }
 
     @Override
