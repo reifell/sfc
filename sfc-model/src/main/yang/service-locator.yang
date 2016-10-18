@@ -6,12 +6,12 @@ module service-locator {
 
   import ietf-inet-types {
       prefix inet;
-      revision-date 2010-09-24;
-      }
+      revision-date 2013-07-15;
+  }
   import ietf-yang-types {
       prefix yang;
-      revision-date 2010-09-24;
-      }
+      revision-date 2013-07-15;
+  }
 
   organization "Cisco Systems, Inc.";
   contact "Reinaldo Penno <repenno@cisco.com>";
@@ -47,7 +47,7 @@ module service-locator {
 
   revision 2014-07-01 {
     description
-    "Changes based on Opendaylight Testing.";
+      "Changes based on Opendaylight Testing.";
     reference "https://tools.ietf.org/html/draft-penno-sfc-yang";
   }
 
@@ -101,7 +101,31 @@ module service-locator {
       registered transport types";
   }
 
-  grouping lisp-locator {
+  identity sfc-encapsulation-identity {
+    description
+      "Base identity from which the SFC encapsulation identities"
+      + " are derived";
+  }
+
+  identity nsh {
+    base "sfc-encapsulation-identity";
+    description "SFC information is exchanged via NSH headers";
+  }
+
+  identity transport {
+    base "sfc-encapsulation-identity";
+    description "SFC information exchange is achieved by means of the transport";
+  }
+
+  typedef sfc-encapsulation-type {
+    type identityref {
+        base "sfc-encapsulation-identity";
+    }
+    description "This type is used to reference all
+      SFC encapsulation types";
+  }
+
+    grouping lisp-locator {
     description
       "Data plane-locator: Lisp Eid(IP)";
     leaf eid {

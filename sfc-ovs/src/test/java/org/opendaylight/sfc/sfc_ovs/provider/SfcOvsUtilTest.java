@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,6 +28,7 @@ import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.ovsdb.southbound.SouthboundConstants;
 import org.opendaylight.sfc.provider.OpendaylightSfc;
 import org.opendaylight.sfc.provider.api.SfcDataStoreAPI;
+import org.opendaylight.sfc.sfc_ovs.provider.api.SfcOvsDataStoreAPITest;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffDataPlaneLocatorName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.SffOvsBridgeAugmentation;
@@ -38,21 +38,21 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.bridge.OvsBridgeBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.node.OvsNodeBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.options.OvsOptionsBuilder;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.SffDataPlaneLocator;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.SffDataPlaneLocatorBuilder;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.SffDataPlaneLocatorKey;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.sff.data.plane.locator.DataPlaneLocatorBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarderBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarderKey;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.SffDataPlaneLocator;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.SffDataPlaneLocatorBuilder;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.SffDataPlaneLocatorKey;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.sff.data.plane.locator.DataPlaneLocatorBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.VxlanGpe;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.data.plane.locator.LocatorType;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.data.plane.locator.locator.type.Ip;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.data.plane.locator.locator.type.IpBuilder;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.IpAddress;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.Ipv4Address;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.Ipv6Address;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.PortNumber;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.IpAddress;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Ipv4Address;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Ipv6Address;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.PortNumber;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.DatapathId;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.InterfaceTypeVxlan;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbBridgeAugmentation;
@@ -456,8 +456,12 @@ public class SfcOvsUtilTest extends AbstractDataBrokerTest {
 
         // create and write node
         OvsdbNodeAugmentationBuilder ovsdbNodeAugmentationBuilder = new OvsdbNodeAugmentationBuilder();
+        org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.IpAddress ipAddress =
+                new org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.IpAddress(
+                        new org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Ipv4Address(testIpAddress));
+
         ovsdbNodeAugmentationBuilder.setConnectionInfo(
-                new ConnectionInfoBuilder().setRemoteIp(new IpAddress(new Ipv4Address(testIpAddress))).build());
+                new ConnectionInfoBuilder().setRemoteIp(ipAddress).build());
 
         NodeBuilder nodeBuilder = new NodeBuilder();
         nodeBuilder.setKey(new NodeKey(new NodeId("nodeId"))).addAugmentation(OvsdbNodeAugmentation.class,
@@ -594,8 +598,12 @@ public class SfcOvsUtilTest extends AbstractDataBrokerTest {
 
         // build ipv6 node
         OvsdbNodeAugmentationBuilder ovsdbNodeAugmentationBuilder = new OvsdbNodeAugmentationBuilder();
+        org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.IpAddress ipAddress =
+                new org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.IpAddress(
+                        new org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Ipv6Address(ipv6Address));
+
         ovsdbNodeAugmentationBuilder.setConnectionInfo(
-                new ConnectionInfoBuilder().setRemoteIp(new IpAddress(new Ipv6Address(ipv6Address))).build());
+                new ConnectionInfoBuilder().setRemoteIp(ipAddress).build());
 
         NodeBuilder nodeBuilder = new NodeBuilder();
         nodeBuilder.setNodeId(new NodeId(ipv6Address)).addAugmentation(OvsdbNodeAugmentation.class,
@@ -741,7 +749,7 @@ public class SfcOvsUtilTest extends AbstractDataBrokerTest {
         NodeBuilder nodeBuilder = new NodeBuilder();
         nodeBuilder.setNodeId(new NodeId(testIpAddress))
             .setTerminationPoint(createTerminationPointList())
-            .addAugmentation(OvsdbNodeAugmentation.class, createOvsdbNodeAugmentation())
+            .addAugmentation(OvsdbNodeAugmentation.class, SfcOvsDataStoreAPITest.createOvsdbNodeAugmentation(testIpAddress))
             .addAugmentation(OvsdbBridgeAugmentation.class, createOvsdbBridgeAugmentation())
             .setKey(new NodeKey(new NodeId(testIpAddress)));
         isCreated =
@@ -783,15 +791,15 @@ public class SfcOvsUtilTest extends AbstractDataBrokerTest {
      * build ovsdb node augmentation with ipv4
      * needed to create a node
      */
-    private OvsdbNodeAugmentation createOvsdbNodeAugmentation() {
-        OvsdbNodeAugmentationBuilder ovsdbNodeAugmentationBuilder = new OvsdbNodeAugmentationBuilder();
-        ConnectionInfoBuilder connectionInfoBuilder = new ConnectionInfoBuilder();
-        connectionInfoBuilder.setRemoteIp(new IpAddress(new Ipv4Address(testIpAddress)));
-        ovsdbNodeAugmentationBuilder.setDbVersion("DbVersion_")
-            .setOvsVersion("OvsVersion_")
-            .setConnectionInfo(connectionInfoBuilder.build());
-        return ovsdbNodeAugmentationBuilder.build();
-    }
+//    private OvsdbNodeAugmentation createOvsdbNodeAugmentation() {
+//        OvsdbNodeAugmentationBuilder ovsdbNodeAugmentationBuilder = new OvsdbNodeAugmentationBuilder();
+//        ConnectionInfoBuilder connectionInfoBuilder = new ConnectionInfoBuilder();
+//        connectionInfoBuilder.setRemoteIp(new IpAddress(new Ipv4Address(testIpAddress)));
+//        ovsdbNodeAugmentationBuilder.setDbVersion("DbVersion_")
+//            .setOvsVersion("OvsVersion_")
+//            .setConnectionInfo(connectionInfoBuilder.build());
+//        return ovsdbNodeAugmentationBuilder.build();
+//    }
 
     /*
      * build ovsdb termination point augmentation

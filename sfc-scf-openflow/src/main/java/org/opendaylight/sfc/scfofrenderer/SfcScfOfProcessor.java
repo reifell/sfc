@@ -13,8 +13,8 @@ import java.util.List;
 import org.opendaylight.sfc.provider.api.SfcProviderAclAPI;
 import org.opendaylight.sfc.provider.api.SfcProviderServiceForwarderAPI;
 import org.opendaylight.sfc.sfc_ovs.provider.SfcOvsUtil;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.access.lists.acl.access.list.entries.ace.actions.sfc.action.AclRenderedServicePath;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.Actions1;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.access.lists.acl.access.list.entries.ace.actions.sfc.action.AclRenderedServicePath;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.RspName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.scf.rev140701.attachment.point.attachment.point.type.Interface;
@@ -23,10 +23,10 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.scf.rev1407
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.SffOvsBridgeAugmentation;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.data.plane.locator.locator.type.Ip;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.Acl;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.acl.AccessListEntries;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.acl.access.list.entries.Ace;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.acl.access.list.entries.ace.Actions;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.access.lists.Acl;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.access.lists.acl.AccessListEntries;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.access.lists.acl.access.list.entries.Ace;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.access.lists.acl.access.list.entries.ace.Actions;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.flow.Match;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.NodeConnectorId;
 import org.slf4j.Logger;
@@ -52,10 +52,10 @@ public class SfcScfOfProcessor {
             return false;
         }
 
-        LOG.debug("create ServiceFunctionClassifier name: {} ACL: {} SFF: {}\n", scf.getName(), scf.getAccessList(),
+        LOG.debug("create ServiceFunctionClassifier name: {} ACL: {} SFF: {}\n", scf.getName(), scf.getAcl(),
                 scf.getSclServiceFunctionForwarder());
 
-        Acl acl = SfcProviderAclAPI.readAccessList(scf.getAccessList());
+        Acl acl = SfcProviderAclAPI.readAccessList(scf.getAcl().getName(), scf.getAcl().getType());
         if (acl == null) {
             LOG.error("createdServiceFunctionClassifier: acl is null\n");
             return false;
@@ -119,7 +119,7 @@ public class SfcScfOfProcessor {
                 }
 
                 String itfName = itf.getInterface();
-                if (itf == null) {
+                if (itfName == null) {
                     LOG.error("createdServiceFunctionClassifier: interface is null\n");
                     continue;
                 }
@@ -151,7 +151,7 @@ public class SfcScfOfProcessor {
 
                 // Action
                 Actions actions = ace.getActions();
-                if (ruleName == null) {
+                if (actions == null) {
                     LOG.error("createdServiceFunctionClassifier: action is null\n");
                     continue;
                 }
@@ -241,10 +241,10 @@ public class SfcScfOfProcessor {
             LOG.error("deletedServiceFunctionClassifier: scf is null\n");
             return false;
         }
-        LOG.debug("delete ServiceFunctionClassifier name: {} ACL: {} SFF: {}\n", scf.getName(), scf.getAccessList(),
+        LOG.debug("delete ServiceFunctionClassifier name: {} ACL: {} SFF: {}\n", scf.getName(), scf.getAcl(),
                 scf.getSclServiceFunctionForwarder());
 
-        Acl acl = SfcProviderAclAPI.readAccessList(scf.getAccessList());
+        Acl acl = SfcProviderAclAPI.readAccessList(scf.getAcl().getName(), scf.getAcl().getType());
         if (acl == null) {
             LOG.error("deletedServiceFunctionClassifier: acl is null\n");
             return false;
@@ -284,7 +284,7 @@ public class SfcScfOfProcessor {
 
                 // Action
                 Actions actions = ace.getActions();
-                if (ruleName == null) {
+                if (actions == null) {
                     LOG.error("createdServiceFunctionClassifier: action is null\n");
                     continue;
                 }
@@ -364,10 +364,6 @@ public class SfcScfOfProcessor {
                 }
             }
         }
-        return true;
-    }
-
-    public boolean updatedServiceFunctionClassifier(ServiceFunctionClassifier scf) {
         return true;
     }
 }

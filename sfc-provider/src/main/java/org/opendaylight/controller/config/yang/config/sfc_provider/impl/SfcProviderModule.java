@@ -8,11 +8,17 @@
 
 package org.opendaylight.controller.config.yang.config.sfc_provider.impl;
 
+import java.util.concurrent.ExecutionException;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.binding.api.DataChangeListener;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.sal.binding.api.BindingAwareBroker;
-import org.opendaylight.sfc.provider.*;
+import org.opendaylight.sfc.provider.OpendaylightSfc;
+import org.opendaylight.sfc.provider.SfcProviderRpc;
+import org.opendaylight.sfc.provider.SfcProviderScfEntryDataListener;
+import org.opendaylight.sfc.provider.SfcProviderSfEntryDataListener;
+import org.opendaylight.sfc.provider.SfcProviderSffEntryDataListener;
+import org.opendaylight.sfc.provider.SfcProviderSfstEntryDataListener;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.service.path.id.rev150804.ServicePathIdService;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.rsp.rev140701.RenderedServicePathService;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.ServiceFunctionService;
@@ -21,7 +27,6 @@ import org.opendaylight.yangtools.concepts.ListenerRegistration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutionException;
 
 /**
  * This class is called from the MD-SAL infra in order to bootstrap
@@ -34,8 +39,6 @@ import java.util.concurrent.ExecutionException;
  * @since       2014-06-30
  * @see org.opendaylight.controller.config.yang.config.sfc_provider.impl.SfcProviderModule
  */
-
-
 public class SfcProviderModule extends org.opendaylight.controller.config.yang.config.sfc_provider.impl.AbstractSfcProviderModule {
 
     private static final Logger LOG = LoggerFactory.getLogger(SfcProviderModule.class);

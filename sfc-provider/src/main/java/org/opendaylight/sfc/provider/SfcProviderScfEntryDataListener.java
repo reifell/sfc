@@ -8,12 +8,8 @@
 
 package org.opendaylight.sfc.provider;
 
-import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStart;
-import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStop;
-
 import java.util.Map;
 import java.util.Set;
-
 import org.opendaylight.controller.md.sal.binding.api.DataChangeListener;
 import org.opendaylight.controller.md.sal.common.api.data.AsyncDataChangeEvent;
 import org.opendaylight.sfc.provider.api.SfcProviderAclAPI;
@@ -22,6 +18,8 @@ import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStart;
+import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStop;
 
 /**
  * This class gets called whenever there is a change to
@@ -52,7 +50,7 @@ public class SfcProviderScfEntryDataListener implements DataChangeListener {
             if (entry.getValue() instanceof ServiceFunctionClassifier) {
                 originalServiceFunctionClassifier = (ServiceFunctionClassifier) entry.getValue();
                 LOG.debug("\n########## Original ServiceFunctionClassifier name: {}", originalServiceFunctionClassifier.getName());
-                LOG.debug("\n########## Original ServiceFunctionClassifier ACL: {}", originalServiceFunctionClassifier.getAccessList());
+                LOG.debug("\n########## Original ServiceFunctionClassifier ACL: {}", originalServiceFunctionClassifier.getAcl());
             }
         }
 
@@ -64,9 +62,10 @@ public class SfcProviderScfEntryDataListener implements DataChangeListener {
                 ServiceFunctionClassifier createdServiceFunctionClassifier = (ServiceFunctionClassifier) entry.getValue();
                 LOG.debug("\n########## Created ServiceFunctionClassifier name: {}", createdServiceFunctionClassifier.getName());
 
-                if ((createdServiceFunctionClassifier.getAccessList() != null) && !createdServiceFunctionClassifier.getAccessList().isEmpty()) {
+                if ((createdServiceFunctionClassifier.getName() != null) && (createdServiceFunctionClassifier.getAcl() != null)) {
                     //call executor to write <ACL, Classifier> entry into ACL operational store
-                    SfcProviderAclAPI.addClassifierToAccessListState(createdServiceFunctionClassifier.getAccessList(),
+                    SfcProviderAclAPI.addClassifierToAccessListState(createdServiceFunctionClassifier.getAcl().getName(),
+                            createdServiceFunctionClassifier.getAcl().getType(),
                             createdServiceFunctionClassifier.getName());
                 }
             }
@@ -80,19 +79,21 @@ public class SfcProviderScfEntryDataListener implements DataChangeListener {
                 LOG.debug("\n########## Modified ServiceFunctionClassifier Name {}",
                         updatedServiceFunctionClassifier.getName());
 
-                if ((originalServiceFunctionClassifier != null && originalServiceFunctionClassifier.getAccessList() != null &&
-                        updatedServiceFunctionClassifier.getAccessList() != null)
-                        && !originalServiceFunctionClassifier.getAccessList().equals(updatedServiceFunctionClassifier.getAccessList())) {
+                if ((originalServiceFunctionClassifier != null && originalServiceFunctionClassifier.getAcl() != null &&
+                        updatedServiceFunctionClassifier.getAcl() != null)
+                        && !originalServiceFunctionClassifier.getAcl().equals(updatedServiceFunctionClassifier.getAcl())) {
 
-                    if (!updatedServiceFunctionClassifier.getAccessList().isEmpty()) {
+                    if (updatedServiceFunctionClassifier.getAcl() !=null) {
                         //call executor to write <ACL, Classifier> entry into ACL operational store
-                        SfcProviderAclAPI.addClassifierToAccessListState(updatedServiceFunctionClassifier.getAccessList(),
+                        SfcProviderAclAPI.addClassifierToAccessListState(updatedServiceFunctionClassifier.getAcl().getName(),
+                                updatedServiceFunctionClassifier.getAcl().getType(),
                                 updatedServiceFunctionClassifier.getName());
                     }
                     // if Access List is empty string, Classifier should be not more linked to the origin Access List
                     else {
                         //call executor to delete <ACL, Classifier> entry from ACL operational store
-                        SfcProviderAclAPI.deleteClassifierFromAccessListState(originalServiceFunctionClassifier.getAccessList(),
+                        SfcProviderAclAPI.deleteClassifierFromAccessListState(originalServiceFunctionClassifier.getAcl().getName(),
+                                originalServiceFunctionClassifier.getAcl().getType(),
                                 originalServiceFunctionClassifier.getName());
                     }
                 }
@@ -106,9 +107,10 @@ public class SfcProviderScfEntryDataListener implements DataChangeListener {
             if (dataObject instanceof ServiceFunctionClassifier) {
                 ServiceFunctionClassifier deletedServiceFunctionClassifier = (ServiceFunctionClassifier) dataObject;
 
-                if ((deletedServiceFunctionClassifier.getAccessList() != null) && !deletedServiceFunctionClassifier.getAccessList().isEmpty()) {
+                if ((deletedServiceFunctionClassifier.getName() != null) && (deletedServiceFunctionClassifier.getAcl() != null)){
                     //call executor to delete <ACL, Classifier> entry from ACL operational store
-                    SfcProviderAclAPI.deleteClassifierFromAccessListState(deletedServiceFunctionClassifier.getAccessList(),
+                    SfcProviderAclAPI.deleteClassifierFromAccessListState(deletedServiceFunctionClassifier.getAcl().getName(),
+                            deletedServiceFunctionClassifier.getAcl().getType(),
                             deletedServiceFunctionClassifier.getName());
                 }
             }

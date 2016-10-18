@@ -16,19 +16,43 @@ import com.sun.jersey.api.core.ResourceConfig;
 import com.sun.jersey.test.framework.AppDescriptor;
 import com.sun.jersey.test.framework.JerseyTest;
 import com.sun.jersey.test.framework.WebAppDescriptor;
-import org.glassfish.grizzly.http.server.*;
+import java.io.IOException;
+import java.net.URI;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.TimeZone;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import org.glassfish.grizzly.http.server.HttpServer;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opendaylight.sfc.tacker.dto.*;
+import org.opendaylight.sfc.tacker.dto.Attributes;
+import org.opendaylight.sfc.tacker.dto.Auth;
 import org.opendaylight.sfc.tacker.dto.Error;
+import org.opendaylight.sfc.tacker.dto.KeystoneRequest;
+import org.opendaylight.sfc.tacker.dto.PasswordCredentials;
+import org.opendaylight.sfc.tacker.dto.TackerError;
 import org.opendaylight.sfc.tacker.dto.TackerRequest;
 import org.opendaylight.sfc.tacker.dto.TackerResponse;
+import org.opendaylight.sfc.tacker.dto.Tenant;
+import org.opendaylight.sfc.tacker.dto.Token;
+import org.opendaylight.sfc.tacker.dto.Vnf;
 import org.opendaylight.sfc.tacker.util.DateSerializer;
 import org.opendaylight.sfc.tacker.util.DateUtils;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SfName;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SftType;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SftTypeName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunction;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunctionBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sft.rev140701.service.function.types.ServiceFunctionType;
@@ -36,13 +60,6 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sft.rev1407
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.*;
-import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.net.URI;
-import java.text.SimpleDateFormat;
-import java.util.*;
 
 public class TackerManagerTest extends JerseyTest {
 
@@ -145,7 +162,7 @@ public class TackerManagerTest extends JerseyTest {
     @Test
     public void createSfTest() {
         // create new vnf
-        ServiceFunctionType sfType = new ServiceFunctionTypeBuilder().setType(new SftType("firewall")).build();
+        ServiceFunctionType sfType = new ServiceFunctionTypeBuilder().setType(new SftTypeName("firewall")).build();
         boolean result = tackerManager.createSf(sfType);
         LOG.debug("Create vnf passed: " + result);
         Assert.assertTrue(result);
@@ -173,7 +190,7 @@ public class TackerManagerTest extends JerseyTest {
                 .build())
             .build();
 
-        ServiceFunctionType sfType = new ServiceFunctionTypeBuilder().setType(new SftType("firewall")).build();
+        ServiceFunctionType sfType = new ServiceFunctionTypeBuilder().setType(new SftTypeName("firewall")).build();
         boolean result = tackerManager.createSf(sfType);
         LOG.debug("createSfTestAuthFail passed: " + !result);
         Assert.assertFalse(result);
@@ -181,7 +198,7 @@ public class TackerManagerTest extends JerseyTest {
 
     @Test
     public void createSfTestEmptyNameFail() {
-        ServiceFunctionType sfType = new ServiceFunctionTypeBuilder().setType(new SftType("")).build();
+        ServiceFunctionType sfType = new ServiceFunctionTypeBuilder().setType(new SftTypeName("")).build();
         boolean result = tackerManager.createSf(sfType);
         LOG.debug("createSfTestEmptyNameFail passed: " + !result);
         Assert.assertFalse(result);
@@ -193,7 +210,7 @@ public class TackerManagerTest extends JerseyTest {
         vnfs.add("Dpi");
 
         ServiceFunction sf =
-                new ServiceFunctionBuilder().setName(new SfName("Dpi")).setType(new SftType("firewall")).build();
+                new ServiceFunctionBuilder().setName(new SfName("Dpi")).setType(new SftTypeName("firewall")).build();
         boolean result = tackerManager.deleteSf(sf);
         Assert.assertTrue(result);
     }
@@ -201,7 +218,7 @@ public class TackerManagerTest extends JerseyTest {
     @Test
     public void deleteSfTestNotFound() {
         ServiceFunction sf =
-                new ServiceFunctionBuilder().setName(new SfName("Nope")).setType(new SftType("nope")).build();
+                new ServiceFunctionBuilder().setName(new SfName("Nope")).setType(new SftTypeName("nope")).build();
         boolean result = tackerManager.deleteSf(sf);
         Assert.assertFalse(result);
     }
@@ -209,9 +226,9 @@ public class TackerManagerTest extends JerseyTest {
     @Test
     public void deleteSfTestBadRequest() {
         ServiceFunction sf =
-                new ServiceFunctionBuilder().setName(new SfName(" ")).setType(new SftType("error")).build();
+                new ServiceFunctionBuilder().setName(new SfName(" ")).setType(new SftTypeName("error")).build();
         Assert.assertFalse(tackerManager.deleteSf(sf));
-        sf = new ServiceFunctionBuilder().setName(new SfName("")).setType(new SftType("error")).build();
+        sf = new ServiceFunctionBuilder().setName(new SfName("")).setType(new SftTypeName("error")).build();
         Assert.assertFalse(tackerManager.deleteSf(sf));
     }
 
@@ -297,8 +314,7 @@ public class TackerManagerTest extends JerseyTest {
                     && testRequest.getAuth().getPasswordCredentials().getPassword().equals("devstack")) {
                 SimpleDateFormat dateFormatGmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
                 dateFormatGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
-                // Local time zone
-                SimpleDateFormat dateFormatLocal = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
 
                 Date now = DateUtils.getUtcDate(new Date());
                 Date expire = DateUtils.addHours(new Date(now.getTime()), 1);

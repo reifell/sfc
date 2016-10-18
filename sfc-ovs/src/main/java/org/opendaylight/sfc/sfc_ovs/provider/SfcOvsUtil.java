@@ -17,6 +17,7 @@
 
 package org.opendaylight.sfc.sfc_ovs.provider;
 
+import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -32,20 +33,25 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.SffOvsBridgeAugmentationBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.bridge.OvsBridge;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.ovs.rev140701.bridge.OvsBridgeBuilder;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.SffDataPlaneLocator;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarderBuilder;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.SffDataPlaneLocator;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.data.plane.locator.locator.type.Ip;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.VxlanGpe;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.*;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.data.plane.locator.locator.type.Ip;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.IpAddress;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Ipv4Address;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Ipv6Address;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.PortNumber;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.DatapathId;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.InterfaceTypeVxlan;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.InterfaceTypeVxlanGpe;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbBridgeAugmentation;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbBridgeAugmentationBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbBridgeName;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbNodeAugmentation;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbNodeRef;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.OvsdbTerminationPointAugmentation;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.ovsdb.rev150105.ovsdb.port._interface.attributes.Options;
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.NetworkTopology;
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.NodeId;
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.TpId;
@@ -61,7 +67,6 @@ import org.opendaylight.yangtools.yang.binding.KeyedInstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
 
 public class SfcOvsUtil {
 
@@ -81,6 +86,8 @@ public class SfcOvsUtil {
     public static final String OVSDB_OPTION_NSHC3 = "nshc3";
     public static final String OVSDB_OPTION_NSHC4 = "nshc4";
     public static final String OVSDB_OPTION_KEY = "key";
+    public static final String OVSDB_OPTION_EXTS = "exts";
+    public static final String OVSDB_OPTION_GPE = "gpe";
     public static final String OVSDB_OPTION_VALUE_FLOW = "flow";
     public static final String DPL_NAME_DPDK = "Dpdk";
     public static final String DPL_NAME_DPDKVHOST = "Dpdkvhost";
@@ -342,7 +349,7 @@ public class SfcOvsUtil {
     }
 
     public static boolean putOvsdbTerminationPoints(OvsdbBridgeAugmentation ovsdbBridge,
-            List<SffDataPlaneLocator> sffDataPlaneLocatorList, ExecutorService executor) {
+                                                    List<SffDataPlaneLocator> sffDataPlaneLocatorList, ExecutorService executor) {
         Preconditions.checkNotNull(executor);
 
         boolean result = true;
@@ -480,7 +487,8 @@ public class SfcOvsUtil {
                         sffDpl.getDataPlaneLocator().getLocatorType().getImplementedInterface();
                 if (locatorType.isAssignableFrom(Ip.class)) {
                     Ip ipPortLocator = (Ip) sffDpl.getDataPlaneLocator().getLocatorType();
-                    ip = ipPortLocator.getIp();
+                    IpAddress ipAddress = new IpAddress(ipPortLocator.getIp().getValue());
+                    ip = ipAddress;
                 }
             }
         }
@@ -607,10 +615,6 @@ public class SfcOvsUtil {
         }
 
         InstanceIdentifier<Topology> topoIID = buildOvsdbTopologyIID();
-//        TopologyId topID = new TopologyId(new Uri(nodeName));
-//        InstanceIdentifier<Topology> topoIID = InstanceIdentifier.create(NetworkTopology.class)
-//                .child(Topology.class, new TopologyKey(topID));
-
         Topology topo = SfcDataStoreAPI.readTransactionAPI(topoIID, LogicalDatastoreType.OPERATIONAL);
 
         if (topo == null) {
@@ -675,8 +679,9 @@ public class SfcOvsUtil {
     public static Long getVxlanOfPort(String nodeName) {
         class VxlanPortCompare implements OvsdbTPComp {
             public boolean compare(OvsdbTerminationPointAugmentation otp) {
-                if (otp == null)
+                if (otp == null) {
                     return false;
+                }
 
                 if (otp.getInterfaceType() == InterfaceTypeVxlan.class) {
                    return true;
@@ -685,5 +690,39 @@ public class SfcOvsUtil {
             }
         }
         return getOvsPort(nodeName, new VxlanPortCompare());
+    }
+
+    /**
+     * This gets the vxlan-gpe openflow port
+     * @param nodeName openflow node name
+     * @return port number
+     */
+    public static Long getVxlanGpeOfPort(String nodeName) {
+        class VxlanGpePortCompare implements OvsdbTPComp {
+            public boolean compare(OvsdbTerminationPointAugmentation otp) {
+                if (otp == null) {
+                    return false;
+                }
+
+                if (otp.getInterfaceType() == InterfaceTypeVxlanGpe.class) {
+                   return true;
+                }
+
+                // If the interface type is not VxlanGpe, then it may be Vxlan with the option exts=gpe set
+                List<Options> options = otp.getOptions();
+                if(options != null) {
+                    for(Options option : options) {
+                        if(option.getValue() != null && option.getOption() != null) {
+                            if(option.getOption().equals(OVSDB_OPTION_EXTS) && option.getValue().equals(OVSDB_OPTION_GPE)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                return false;
+            }
+        }
+        return getOvsPort(nodeName, new VxlanGpePortCompare());
     }
 }

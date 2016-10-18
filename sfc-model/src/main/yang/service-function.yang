@@ -6,19 +6,20 @@ module service-function {
 
   import ietf-inet-types {
       prefix inet;
-      revision-date 2010-09-24;
-      }
+      revision-date 2013-07-15;
+  }
   import service-locator {
       prefix sfc-sl;
       revision-date 2014-07-01;
-      }
+  }
   import service-statistics {
       prefix sfc-ss;
       revision-date 2014-07-01;
-      }
+  }
   import sfc-common {
       prefix sfc-common;
-      }
+      revision-date 2015-10-17;
+  }
 
 
   organization "Cisco Systems, Inc.";
@@ -32,57 +33,36 @@ module service-function {
   revision 2014-07-01 {
     description
       "Changes based on Opendaylight Testing.";
+    reference
+     "https://tools.ietf.org/html/draft-penno-sfc-yang-14";
   }
 
-  grouping service-function-entry {
+  grouping service-function-base {
     description
-      "This group bundles together all information related to a
-       single service function";
+      "A group with all base nodes to describe service function";
     leaf name {
       type sfc-common:sf-name;
       description
-          "The name of the service function.";
-    }
-    leaf tenant-id {
-      type sfc-common:tenant-id;
-      description
-        "This SF was created for a specific tenant-id";
+        "The name of the service function.";
     }
     leaf type {
-      type sfc-common:sft-type;
+      type sfc-common:sft-type-name;
       mandatory true;
       description
         "Service Function Type from service-function-type yang
          model";
-    }
-    leaf rest-uri {
-      type inet:uri;
-      description "URI of REST based management";
     }
     leaf ip-mgmt-address {
       type inet:ip-address;
       description
         "The IP and port used to configure this service-function";
     }
-    //TODO should not use "_" in yang names. This will be deprecated before it becomes an issue.
-    leaf request_reclassification {
-        status deprecated;
-        type boolean;
-        description "This leaf determines whether SF can request
-          reclassification by the SFF";
-      }
-    leaf nsh-aware {
-      status deprecated;
-      type boolean;
-      description "Whether this SF can process NSH headers";
-    }
-
     list sf-data-plane-locator {
       key "name";
       description
         "A network data-plane locator";
       leaf name {
-          type sfc-common:sf-data-plane-locator-name;
+        type sfc-common:sf-data-plane-locator-name;
         description
           "A unique string that represents this
            data-plane-locator";
@@ -95,6 +75,34 @@ module service-function {
            locator";
       }
     }
+  }
+
+  grouping service-function-entry {
+    description
+      "This group bundles together all information related to a
+       single service function";
+    leaf tenant-id {
+      type sfc-common:tenant-id;
+      description
+        "This SF was created for a specific tenant-id";
+    }
+    leaf rest-uri {
+      type inet:uri;
+      description "URI of REST based management";
+    }
+    leaf request_reclassification {
+      type boolean;
+      status deprecated;
+      description
+        "This leaf determines whether SF can request
+         reclassification by the SFF";
+    }
+    leaf nsh-aware {
+      type boolean;
+      status deprecated;
+      description "Whether this SF can process NSH headers";
+    }
+    uses service-function-base;
   }
 
   container service-functions {

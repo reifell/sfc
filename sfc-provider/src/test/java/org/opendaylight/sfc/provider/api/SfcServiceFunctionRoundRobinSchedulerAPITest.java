@@ -15,7 +15,6 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
@@ -24,7 +23,7 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev1
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SfcName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SfpName;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SftType;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SftTypeName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfc.rev140701.service.function.chain.grouping.ServiceFunctionChain;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfc.rev140701.service.function.chain.grouping.ServiceFunctionChainBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfc.rev140701.service.function.chain.grouping.ServiceFunctionChainKey;
@@ -140,17 +139,17 @@ public class SfcServiceFunctionRoundRobinSchedulerAPITest extends AbstractDataSt
 
         sfcServiceFunctionBuilder.setName(SF_NAME_BASE + 1)
             .setKey(new SfcServiceFunctionKey(SF_NAME_BASE + 1))
-            .setType(new SftType("firewall"));
+            .setType(new SftTypeName("firewall"));
         sfcServiceFunctionList.add(sfcServiceFunctionBuilder.build());
         sfcServiceFunctionBuilder = new SfcServiceFunctionBuilder();
         sfcServiceFunctionBuilder.setName(SF_NAME_BASE + 2)
             .setKey(new SfcServiceFunctionKey(SF_NAME_BASE + 2))
-            .setType(new SftType("dpi"));
+            .setType(new SftTypeName("dpi"));
         sfcServiceFunctionList.add(sfcServiceFunctionBuilder.build());
         sfcServiceFunctionBuilder = new SfcServiceFunctionBuilder();
         sfcServiceFunctionBuilder.setName(SF_NAME_BASE + 3)
             .setKey(new SfcServiceFunctionKey(SF_NAME_BASE + 3))
-            .setType(new SftType("qos"));
+            .setType(new SftTypeName("qos"));
         sfcServiceFunctionList.add(sfcServiceFunctionBuilder.build());
 
         serviceFunctionChainBuilder.setName(SFC_NAME)
@@ -167,8 +166,10 @@ public class SfcServiceFunctionRoundRobinSchedulerAPITest extends AbstractDataSt
 
         SftServiceFunctionNameBuilder sftServiceFunctionNameBuilder = new SftServiceFunctionNameBuilder();
 
-        sftServiceFunctionNameBuilder.setName(SF_NAME_BASE + serviceFunctionType)
-            .setKey(new SftServiceFunctionNameKey(SF_NAME_BASE + serviceFunctionType));
+        SfName sfName = new SfName(SF_NAME_BASE + serviceFunctionType);
+
+        sftServiceFunctionNameBuilder.setName(sfName)
+            .setKey(new SftServiceFunctionNameKey(sfName));
         sftServiceFunctionNames.add(sftServiceFunctionNameBuilder.build());
 
         return sftServiceFunctionNames;
@@ -205,17 +206,17 @@ public class SfcServiceFunctionRoundRobinSchedulerAPITest extends AbstractDataSt
 
         ServiceFunctionTypeBuilder serviceFunctionTypeBuilder = new ServiceFunctionTypeBuilder();
         serviceFunctionTypeBuilder.setSftServiceFunctionName(createSftServiceFunctionNames("Firewall"))
-            .setType(new SftType("firewall"));
+            .setType(new SftTypeName("firewall"));
         serviceFunctionTypeList.add(serviceFunctionTypeBuilder.build());
 
         serviceFunctionTypeBuilder = new ServiceFunctionTypeBuilder();
         serviceFunctionTypeBuilder.setSftServiceFunctionName(createSftServiceFunctionNames("Dpi"))
-            .setType(new SftType("dpi"));
+            .setType(new SftTypeName("dpi"));
         serviceFunctionTypeList.add(serviceFunctionTypeBuilder.build());
 
         serviceFunctionTypeBuilder = new ServiceFunctionTypeBuilder();
         serviceFunctionTypeBuilder.setSftServiceFunctionName(createSftServiceFunctionNames("Qos"))
-            .setType(new SftType("qos"));
+            .setType(new SftTypeName("qos"));
         serviceFunctionTypeList.add(serviceFunctionTypeBuilder.build());
 
         serviceFunctionTypesBuilder.setServiceFunctionType(serviceFunctionTypeList);

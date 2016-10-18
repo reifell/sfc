@@ -14,7 +14,7 @@ import org.opendaylight.controller.md.sal.binding.api.*;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.monitor.provider.packetHandler.PacketInListener;
 import org.opendaylight.sfc.util.openflow.SfcOpenflowUtils;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.Uri;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Uri;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.OutputActionCase;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.OutputActionCaseBuilder;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.output.action._case.OutputActionBuilder;
@@ -39,7 +39,7 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.flow.types.rev131026.instru
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.Nodes;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.Node;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.NodeKey;
-
+import org.opendaylight.sfc.ofrenderer.openflow.SfcOfFlowProgrammerImpl;
 import org.opendaylight.yangtools.concepts.ListenerRegistration;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
@@ -82,7 +82,7 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
     public static final short TABLE_INDEX_TRANSPORT_EGRESS = 10;
     public static final int COOKIE_BIGINT_HEX_RADIX = 16;
     public static final BigInteger TRANSPORT_EGRESS_COOKIE =
-            new BigInteger("BA5EBA11BA5EBA11", COOKIE_BIGINT_HEX_RADIX);
+            new BigInteger("BA5EBA11BA5EBA11ba5eba11", COOKIE_BIGINT_HEX_RADIX);
     public static final BigInteger SFC_MONIOR_COOKIE = new BigInteger("1FFFF1", COOKIE_BIGINT_HEX_RADIX);
 
     public static final BigInteger METADATA_MASK_SFP_MATCH =
@@ -126,7 +126,11 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
             Flow flow = mod.getDataAfter();
             final String nodeName = key.firstKeyOf(Node.class, NodeKey.class).getId().getValue();
 
-            if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE)) {
+            Long cookieLong = flow.getCookie().getValue().longValue();
+            //LOG.info("coockie {}", flow.getCookie().getValue().toString(16));
+            //LOG.info("coockie - {}", Long.toHexString(cookieLong));
+
+            if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && Long.toHexString(cookieLong).toUpperCase().startsWith(SfcOfFlowProgrammerImpl.TRANSPORT_EGRESS_COOKIE_STR_BASE)) {
 
                 //action to only send packets to next table
                 LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
@@ -278,7 +282,7 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
           FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
                   flowBuilder.getTableId(),
                   flowBuilder.getPriority() +1,
-                  TRANSPORT_EGRESS_COOKIE.add(BigInteger.ONE),
+                  flowBuilder.getCookie().getValue().add(BigInteger.ONE),
                   flowBuilder.getFlowName(), newMatch, newInstructions);
 
           return newFlowBuilder;

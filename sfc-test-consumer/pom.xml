@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.opendaylight.sfc</groupId>
         <artifactId>sfc-parent</artifactId>
-        <version>0.2.4-SNAPSHOT</version>
+        <version>0.3.1-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
     <artifactId>sfc-test-consumer</artifactId>
@@ -22,11 +22,11 @@
         </dependency>
         <dependency>
             <groupId>org.opendaylight.mdsal.model</groupId>
-            <artifactId>ietf-inet-types</artifactId>
+            <artifactId>ietf-inet-types-2013-07-15</artifactId>
         </dependency>
         <dependency>
             <groupId>org.opendaylight.mdsal.model</groupId>
-            <artifactId>ietf-yang-types</artifactId>
+            <artifactId>ietf-yang-types-20130715</artifactId>
         </dependency>
         <dependency>
             <groupId>org.opendaylight.controller</groupId>

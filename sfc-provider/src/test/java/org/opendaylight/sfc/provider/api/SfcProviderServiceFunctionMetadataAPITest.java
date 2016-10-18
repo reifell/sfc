@@ -8,12 +8,14 @@
 
 package org.opendaylight.sfc.provider.api;
 
-import java.util.List;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
-import static org.junit.Assert.*;
-
 import org.opendaylight.sfc.provider.AbstractDataStoreManager;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.md.rev140701.service.function.metadata.ContextMetadata;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.md.rev140701.service.function.metadata.ContextMetadataBuilder;
@@ -23,6 +25,7 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.md.rev14070
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.md.rev140701.service.function.metadata.VariableMetadataKey;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.md.rev140701.service.function.metadata.variable.metadata.TlvMetadata;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.md.rev140701.service.function.metadata.variable.metadata.TlvMetadataBuilder;
+
 
 /**
  * This class defines the APIs to operate on the ServiceFunctionScheduleTypes

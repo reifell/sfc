@@ -8,23 +8,22 @@
 
 package org.opendaylight.sfc.provider.api;
 
-import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStart;
-import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStop;
-
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.AccessLists;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.AccessListsState;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.Acl;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.AclKey;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.state.AccessListState;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.state.AccessListStateKey;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.state.access.list.state.AclServiceFunctionClassifier;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.state.access.list.state.AclServiceFunctionClassifierBuilder;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.state.access.list.state.AclServiceFunctionClassifierKey;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.AccessListsState;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.access.lists.state.AccessListState;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.access.lists.state.AccessListStateKey;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.access.lists.state.access.list.state.AclServiceFunctionClassifier;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.access.lists.state.access.list.state.AclServiceFunctionClassifierBuilder;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.acl.rev151001.access.lists.state.access.list.state.AclServiceFunctionClassifierKey;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.AccessLists;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.AclBase;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.access.lists.Acl;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.access.lists.AclKey;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStart;
+import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStop;
 
 /**
  * This class has the APIs to operate on the ACL
@@ -47,14 +46,16 @@ public class SfcProviderAclAPI {
     /**
      * This method reads a Access List from DataStore
      * <p>
-     * @param accessListName Access List name
+     * @param aclName Acl name
+     * @param aclType Acl type
      * @return ACL object or null if not found
      */
-    public static Acl readAccessList(String accessListName) {
+    public static Acl readAccessList(String aclName, java.lang.Class<? extends AclBase> aclType) {
+
         printTraceStart(LOG);
         Acl acl;
         InstanceIdentifier<Acl> aclIID;
-        AclKey aclKey = new AclKey(accessListName);
+        AclKey aclKey = new AclKey(aclName, aclType);
         aclIID = InstanceIdentifier.builder(AccessLists.class)
                 .child(Acl.class, aclKey).build();
 
@@ -64,18 +65,18 @@ public class SfcProviderAclAPI {
         return acl;
     }
 
-
     /**
      * This method reads a Access List state from Operational DataStore
      * <p>
-     * @param accessListName Access List name
+     * @param aclName Acl name
+     * @param aclType Acl type
      * @return ACL state object or null if not found
      */
-    public static AccessListState readAccessListState(String accessListName) {
+    public static AccessListState readAccessListState(String aclName, java.lang.Class<? extends AclBase> aclType) {
         printTraceStart(LOG);
         AccessListState aclState;
         InstanceIdentifier<AccessListState> aclStateIID;
-        AccessListStateKey accessListStateKey = new AccessListStateKey(accessListName);
+        AccessListStateKey accessListStateKey = new AccessListStateKey(aclName, aclType);
         aclStateIID = InstanceIdentifier.builder(AccessListsState.class)
                 .child(AccessListState.class, accessListStateKey).build();
 
@@ -89,11 +90,12 @@ public class SfcProviderAclAPI {
     /**
      * Adds Classifier to Access List state
      * <p>
-     * @param accessListName Access List name
+     * @param aclName Acl name
+     * @param aclType Acl type
      * @param serviceClassifierName Service Classifier name
      * @return true if success.
      */
-    public static boolean addClassifierToAccessListState (String accessListName, String serviceClassifierName) {
+    public static boolean addClassifierToAccessListState (String aclName, java.lang.Class<? extends AclBase> aclType, String serviceClassifierName) {
 
         printTraceStart(LOG);
         InstanceIdentifier<AclServiceFunctionClassifier> aclIID;
@@ -103,18 +105,19 @@ public class SfcProviderAclAPI {
         AclServiceFunctionClassifierKey aclServiceClassifierKey = new AclServiceFunctionClassifierKey(serviceClassifierName);
         aclServiceClassifierBuilder.setKey(aclServiceClassifierKey).setName(serviceClassifierName);
 
-        AccessListStateKey accessListStateKey = new AccessListStateKey(accessListName);
+        AccessListStateKey accessListStateKey = new AccessListStateKey(aclName, aclType);
 
         aclIID = InstanceIdentifier.builder(AccessListsState.class)
                 .child(AccessListState.class, accessListStateKey)
-                .child(AclServiceFunctionClassifier.class, aclServiceClassifierKey).toInstance();
+                .child(AclServiceFunctionClassifier.class, aclServiceClassifierKey)
+                .build();
 
         if (SfcDataStoreAPI.writeMergeTransactionAPI(aclIID, aclServiceClassifierBuilder.build(),
                 LogicalDatastoreType.OPERATIONAL)) {
             ret = true;
         } else {
-            LOG.error("{}: Failed to create Access List {} state. Service Function CLassifier: {}",
-                    Thread.currentThread().getStackTrace()[1], accessListName, serviceClassifierName);
+            LOG.error("{}: Failed to create Access List {}:{} state. Service Function CLassifier: {}",
+                    Thread.currentThread().getStackTrace()[1], aclName, aclType, serviceClassifierName);
         }
         printTraceStop(LOG);
         return ret;
@@ -123,11 +126,12 @@ public class SfcProviderAclAPI {
     /**
      * Deletes Classifier from Access List state
      * <p>
-     * @param accessListName Access List name
+     * @param aclName Acl name
+     * @param aclType Acl type
      * @param serviceClassifierName Service Classifier name
      * @return true if success.
      */
-    public static boolean deleteClassifierFromAccessListState (String accessListName, String serviceClassifierName) {
+    public static boolean deleteClassifierFromAccessListState (String aclName, java.lang.Class<? extends AclBase> aclType, String serviceClassifierName) {
 
         printTraceStart(LOG);
         InstanceIdentifier<AclServiceFunctionClassifier> aclIID;
@@ -135,17 +139,18 @@ public class SfcProviderAclAPI {
 
         AclServiceFunctionClassifierKey aclServiceClassifierKey = new AclServiceFunctionClassifierKey(serviceClassifierName);
 
-        AccessListStateKey accessListStateKey = new AccessListStateKey(accessListName);
+        AccessListStateKey accessListStateKey = new AccessListStateKey(aclName, aclType);
 
         aclIID = InstanceIdentifier.builder(AccessListsState.class)
                 .child(AccessListState.class, accessListStateKey)
-                .child(AclServiceFunctionClassifier.class, aclServiceClassifierKey).toInstance();
+                .child(AclServiceFunctionClassifier.class, aclServiceClassifierKey)
+                .build();
 
         if (SfcDataStoreAPI.deleteTransactionAPI(aclIID, LogicalDatastoreType.OPERATIONAL)) {
             ret = true;
         } else {
-            LOG.error("{}: Failed to delete Access List {} state. Service Function CLassifier: {}",
-                    Thread.currentThread().getStackTrace()[1], accessListName, serviceClassifierName);
+            LOG.error("{}: Failed to delete Access List {}:{} state. Service Function CLassifier: {}",
+                    Thread.currentThread().getStackTrace()[1], aclName, aclType, serviceClassifierName);
         }
         printTraceStop(LOG);
         return ret;

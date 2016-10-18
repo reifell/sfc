@@ -8,14 +8,9 @@
 
 package org.opendaylight.sfc.tacker.dto;
 
-import com.google.gson.*;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.opendaylight.sfc.tacker.util.DateDeserializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -27,6 +22,13 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.opendaylight.sfc.tacker.util.DateDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class TokenTest {
 

@@ -7,23 +7,21 @@
  */
 package org.opendaylight.sfc.sbrest.provider.listener;
 
-import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStart;
-import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStop;
-
 import java.util.Map;
 import java.util.Set;
-
 import org.opendaylight.controller.md.sal.common.api.data.AsyncDataChangeEvent;
 import org.opendaylight.sfc.provider.OpendaylightSfc;
 import org.opendaylight.sfc.provider.api.SfcProviderAclAPI;
 import org.opendaylight.sfc.sbrest.provider.task.RestOperation;
 import org.opendaylight.sfc.sbrest.provider.task.SbRestAclTask;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.scf.rev140701.service.function.classifiers.ServiceFunctionClassifier;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev150317.access.lists.Acl;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.access.control.list.rev160218.access.lists.Acl;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStart;
+import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStop;
 
 public class SbRestScfEntryDataListener extends SbRestAbstractDataListener {
     private static final Logger LOG = LoggerFactory.getLogger(SbRestScfEntryDataListener.class);
@@ -59,8 +57,9 @@ public class SbRestScfEntryDataListener extends SbRestAbstractDataListener {
                 ServiceFunctionClassifier createdServiceClassifier = (ServiceFunctionClassifier) entry.getValue();
                 LOG.debug("\nCreated Service Classifier Name: {}", createdServiceClassifier.getName());
 
-                if (createdServiceClassifier.getAccessList() != null && !createdServiceClassifier.getAccessList().isEmpty()) {
-                    Acl accessList = SfcProviderAclAPI.readAccessList(createdServiceClassifier.getAccessList());
+                if (createdServiceClassifier.getAcl() != null ) {
+                    Acl accessList = SfcProviderAclAPI.readAccessList(createdServiceClassifier.getAcl().getName(),
+                        createdServiceClassifier.getAcl().getType());
 
                     Runnable task = new SbRestAclTask(RestOperation.POST, accessList,
                             createdServiceClassifier.getSclServiceFunctionForwarder(), opendaylightSfc.getExecutor());
@@ -77,8 +76,9 @@ public class SbRestScfEntryDataListener extends SbRestAbstractDataListener {
                 ServiceFunctionClassifier updatedServiceClassifier = (ServiceFunctionClassifier) entry.getValue();
                 LOG.debug("\nModified Service Classifier Name: {}", updatedServiceClassifier.getName());
 
-                if (updatedServiceClassifier.getAccessList() != null && !updatedServiceClassifier.getAccessList().isEmpty()) {
-                    Acl accessList = SfcProviderAclAPI.readAccessList(updatedServiceClassifier.getAccessList());
+                if (updatedServiceClassifier.getAcl() != null) {
+                    Acl accessList = SfcProviderAclAPI.readAccessList(updatedServiceClassifier.getAcl().getName(),
+                        updatedServiceClassifier.getAcl().getType());
 
                     Runnable task = new SbRestAclTask(RestOperation.PUT, accessList,
                             updatedServiceClassifier.getSclServiceFunctionForwarder(), opendaylightSfc.getExecutor());
@@ -96,8 +96,9 @@ public class SbRestScfEntryDataListener extends SbRestAbstractDataListener {
                 ServiceFunctionClassifier deletedServiceClassifier = (ServiceFunctionClassifier) dataObject;
                 LOG.debug("\nDeleted Service Classifier Name: {}", deletedServiceClassifier.getName());
 
-                if (deletedServiceClassifier.getAccessList() != null && !deletedServiceClassifier.getAccessList().isEmpty()) {
-                    Runnable task = new SbRestAclTask(RestOperation.DELETE, deletedServiceClassifier.getAccessList(),
+                if (deletedServiceClassifier.getAcl() != null) {
+                    Runnable task = new SbRestAclTask(RestOperation.DELETE, deletedServiceClassifier.getAcl().getName(),
+                            deletedServiceClassifier.getAcl().getType(),
                             deletedServiceClassifier.getSclServiceFunctionForwarder(), opendaylightSfc.getExecutor());
                     opendaylightSfc.getExecutor().submit(task);
                 }

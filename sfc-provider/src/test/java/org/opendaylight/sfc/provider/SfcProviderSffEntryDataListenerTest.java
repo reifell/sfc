@@ -20,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,13 +40,13 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev1
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffDataPlaneLocatorName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SffName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SfpName;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SftType;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SftTypeName;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.rsp.rev140701.CreateRenderedPathInputBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.rsp.rev140701.rendered.service.paths.RenderedServicePath;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.ServiceFunctionsBuilder;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.function.entry.SfDataPlaneLocator;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.function.entry.SfDataPlaneLocatorBuilder;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.function.entry.SfDataPlaneLocatorKey;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.function.base.SfDataPlaneLocator;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.function.base.SfDataPlaneLocatorBuilder;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.function.base.SfDataPlaneLocatorKey;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunction;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunctionBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunctionKey;
@@ -60,6 +59,10 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfc.rev1407
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.Open;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.ServiceFunctionForwarders;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.ServiceFunctionForwardersBuilder;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.SffDataPlaneLocator;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.SffDataPlaneLocatorBuilder;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.SffDataPlaneLocatorKey;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarder.base.sff.data.plane.locator.DataPlaneLocatorBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarderBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarderKey;
@@ -68,20 +71,16 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev1407
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.ServiceFunctionDictionary;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.ServiceFunctionDictionaryBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.ServiceFunctionDictionaryKey;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.SffDataPlaneLocator;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.SffDataPlaneLocatorBuilder;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.SffDataPlaneLocatorKey;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.service.function.dictionary.SffSfDataPlaneLocator;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.service.function.dictionary.SffSfDataPlaneLocatorBuilder;
-import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.sff.data.plane.locator.DataPlaneLocatorBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.state.service.function.forwarder.state.SffServicePath;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfp.rev140701.service.function.paths.ServiceFunctionPath;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfp.rev140701.service.function.paths.ServiceFunctionPathBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.VxlanGpe;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.data.plane.locator.locator.type.IpBuilder;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.IpAddress;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.Ipv4Address;
-import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev100924.PortNumber;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.IpAddress;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Ipv4Address;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.PortNumber;
 import org.opendaylight.yangtools.concepts.ListenerRegistration;
 import org.opendaylight.yangtools.yang.binding.DataObject;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
@@ -119,10 +118,10 @@ public class SfcProviderSffEntryDataListenerTest extends AbstractDataStoreManage
     public void testOnDataChanged_CreateData() throws Exception {
         AsyncDataChangeEvent<InstanceIdentifier<?>, DataObject> dataChangeEvent =
                 Mockito.mock(AsyncDataChangeEvent.class);
-        Map<InstanceIdentifier<?>, DataObject> createdData = new HashMap<InstanceIdentifier<?>, DataObject>();
-        Set<InstanceIdentifier<?>> removedPaths = new HashSet<InstanceIdentifier<?>>();
-        Map<InstanceIdentifier<?>, DataObject> updatedData = new HashMap<InstanceIdentifier<?>, DataObject>();
-        Map<InstanceIdentifier<?>, DataObject> originalData = new HashMap<InstanceIdentifier<?>, DataObject>();
+        Map<InstanceIdentifier<?>, DataObject> createdData = new HashMap<>();
+        Set<InstanceIdentifier<?>> removedPaths = new HashSet<>();
+        Map<InstanceIdentifier<?>, DataObject> updatedData = new HashMap<>();
+        Map<InstanceIdentifier<?>, DataObject> originalData = new HashMap<>();
 
         ServiceFunctionForwarder serviceFunctionForwarder = build_service_function_forwarder();
 
@@ -156,10 +155,10 @@ public class SfcProviderSffEntryDataListenerTest extends AbstractDataStoreManage
     public void testOnDataChanged_RemoveData() throws Exception {
         AsyncDataChangeEvent<InstanceIdentifier<?>, DataObject> dataChangeEvent =
                 Mockito.mock(AsyncDataChangeEvent.class);
-        Map<InstanceIdentifier<?>, DataObject> createdData = new HashMap<InstanceIdentifier<?>, DataObject>();
-        Set<InstanceIdentifier<?>> removedPaths = new HashSet<InstanceIdentifier<?>>();
-        Map<InstanceIdentifier<?>, DataObject> updatedData = new HashMap<InstanceIdentifier<?>, DataObject>();
-        Map<InstanceIdentifier<?>, DataObject> originalData = new HashMap<InstanceIdentifier<?>, DataObject>();
+        Map<InstanceIdentifier<?>, DataObject> createdData = new HashMap<>();
+        Set<InstanceIdentifier<?>> removedPaths = new HashSet<>();
+        Map<InstanceIdentifier<?>, DataObject> updatedData = new HashMap<>();
+        Map<InstanceIdentifier<?>, DataObject> originalData = new HashMap<>();
 
         ServiceFunctionForwarder serviceFunctionForwarder = build_service_function_forwarder();
 
@@ -195,10 +194,10 @@ public class SfcProviderSffEntryDataListenerTest extends AbstractDataStoreManage
     public void testOnDataChanged_RemoveDataWithRSP() throws Exception {
         AsyncDataChangeEvent<InstanceIdentifier<?>, DataObject> dataChangeEvent =
                 Mockito.mock(AsyncDataChangeEvent.class);
-        Map<InstanceIdentifier<?>, DataObject> createdData = new HashMap<InstanceIdentifier<?>, DataObject>();
-        Set<InstanceIdentifier<?>> removedPaths = new HashSet<InstanceIdentifier<?>>();
-        Map<InstanceIdentifier<?>, DataObject> updatedData = new HashMap<InstanceIdentifier<?>, DataObject>();
-        Map<InstanceIdentifier<?>, DataObject> originalData = new HashMap<InstanceIdentifier<?>, DataObject>();
+        Map<InstanceIdentifier<?>, DataObject> createdData = new HashMap<>();
+        Set<InstanceIdentifier<?>> removedPaths = new HashSet<>();
+        Map<InstanceIdentifier<?>, DataObject> updatedData = new HashMap<>();
+        Map<InstanceIdentifier<?>, DataObject> originalData = new HashMap<>();
 
         RenderedServicePath renderedServicePath = build_and_commit_rendered_service_path();
         assertNotNull(renderedServicePath);
@@ -268,10 +267,10 @@ public class SfcProviderSffEntryDataListenerTest extends AbstractDataStoreManage
         String UPDATED_IP_MGMT_ADDRESS = "196.168.55.102";
         AsyncDataChangeEvent<InstanceIdentifier<?>, DataObject> dataChangeEvent =
                 Mockito.mock(AsyncDataChangeEvent.class);
-        Map<InstanceIdentifier<?>, DataObject> createdData = new HashMap<InstanceIdentifier<?>, DataObject>();
-        Set<InstanceIdentifier<?>> removedPaths = new HashSet<InstanceIdentifier<?>>();
-        Map<InstanceIdentifier<?>, DataObject> updatedData = new HashMap<InstanceIdentifier<?>, DataObject>();
-        Map<InstanceIdentifier<?>, DataObject> originalData = new HashMap<InstanceIdentifier<?>, DataObject>();
+        Map<InstanceIdentifier<?>, DataObject> createdData = new HashMap<>();
+        Set<InstanceIdentifier<?>> removedPaths = new HashSet<>();
+        Map<InstanceIdentifier<?>, DataObject> updatedData = new HashMap<>();
+        Map<InstanceIdentifier<?>, DataObject> originalData = new HashMap<>();
 
         RenderedServicePath renderedServicePath = build_and_commit_rendered_service_path();
         assertNotNull(renderedServicePath);
@@ -375,7 +374,7 @@ public class SfcProviderSffEntryDataListenerTest extends AbstractDataStoreManage
         dataPlaneLocatorList.add(sfDataPlaneLocator);
         sfBuilder.setName(new SfName(sfNames.get(0)))
             .setKey(new ServiceFunctionKey(new SfName("unittest-fw-1")))
-            .setType(new SftType("firewall"))
+            .setType(new SftTypeName("firewall"))
             .setIpMgmtAddress(ipMgmtAddress[0])
             .setSfDataPlaneLocator(dataPlaneLocatorList);
         sfList.add(sfBuilder.build());
@@ -450,14 +449,14 @@ public class SfcProviderSffEntryDataListenerTest extends AbstractDataStoreManage
             }
         };
 
-        List<SftType> sfTypes = new ArrayList<SftType>() {
+        List<SftTypeName> sfTypes = new ArrayList<SftTypeName>() {
 
             {
-                add(new SftType("firewall"));
-                add(new SftType("dpi"));
-                add(new SftType("napt44"));
-                add(new SftType("http-header-enrichment"));
-                add(new SftType("qos"));
+                add(new SftTypeName("firewall"));
+                add(new SftTypeName("dpi"));
+                add(new SftTypeName("napt44"));
+                add(new SftTypeName("http-header-enrichment"));
+                add(new SftTypeName("qos"));
             }
         };
 
