@@ -44,7 +44,7 @@ class sfc():
         self.disableOffLoadFromIfaces()
 
         CLI(self.net)
-
+        self.odl.clean(self.callBackConfs['chain'], self.callBackConfs['sw'])
         self.cleanProcess()
 
     def __init__(self):

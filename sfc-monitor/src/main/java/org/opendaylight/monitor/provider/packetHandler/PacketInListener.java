@@ -577,7 +577,7 @@ public class PacketInListener implements PacketProcessingListener {
                 if (timetoUpdate == 0) {
                     timetoUpdate = inTime;
                 } else if ( inTime  >  timetoUpdate + TEN_SECONDS) {
-                    updateStoredChains(inTime);
+                 //   updateStoredChains(inTime);
                     timetoUpdate = inTime;
                 }
 

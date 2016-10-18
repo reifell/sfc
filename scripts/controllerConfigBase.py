@@ -88,7 +88,7 @@ class ConfigBase:
                 if 'flow' in key1:
                     for key2 in key1['flow']:
                         if 'flow-name' in key2:
-                            if key2 != None and key2['flow-name'] == 'nextHop' and key2['priority'] == 450:
+                            if key2 != None and key2['flow-name'] == 'nextHop' and key2['priority'] == 350:
                                 vlanid.append(key2['match']['vlan-match']['vlan-id']['vlan-id'])
         print vlanid
         if not vlanid:

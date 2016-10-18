@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     sfc.addGw(sw1)
     #'ips',
-    chain = ['test', 'ips', 'fw', 'fw1']#, 'fw']#, 'fw1', 'fw2', 'fw3']
+    chain = ['test', 'ips2', 'fw', 'fw1']#, 'fw']#, 'fw1', 'fw2', 'fw3']
 
     #chain2 = ['test', 'dpi', 'dpi2', 'ips', 'ids', 'fw', ]#'fw1', 'fw2', 'fw3']
 
