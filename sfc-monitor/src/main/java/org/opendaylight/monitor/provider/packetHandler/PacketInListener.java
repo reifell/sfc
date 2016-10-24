@@ -48,10 +48,18 @@ public class PacketInListener implements PacketProcessingListener {
     private final static int PACKET_OFFSET_IP_TOS = PACKET_OFFSET_IP + 1;
     private final static int PACKET_OFFSET_IP_ID = PACKET_OFFSET_IP + 4;
     private final static int PACKET_OFFSET_IP_TTL = PACKET_OFFSET_IP + 8;
+    private final static int PACKET_OFFSET_IP_PROTO = PACKET_OFFSET_IP + 9;
+    private final static int PACKET_OFFSET_UDP = PACKET_OFFSET_IP + 20;
+    private final static int PACKET_OFFSET_NSH = PACKET_OFFSET_IP + 8 ; // eth + nsh offsets
+
+
+
 
     private final static int PACKET_OFFSET_IP_SRC = PACKET_OFFSET_IP + 12;
     private final static int PACKET_OFFSET_IP_DST = PACKET_OFFSET_IP + 16;
     public final static int ETHERTYPE_IPV4 = 0x0800;
+    public final static int ETHERTYPE_NSH = 0x894f;
+
     public final static int VLAN = 0x08100;
     private final static short ECN_MASK = 3;
 
@@ -67,6 +75,8 @@ public class PacketInListener implements PacketProcessingListener {
 
     public static final BigInteger TRACE_FULL_COKIE =
             new BigInteger("FF44FF", COOKIE_BIGINT_HEX_RADIX);
+
+    public static final String TABLE_ZERO_IDENTIFICATION = "8989";
 
     private static final int SCHEDULED_THREAD_POOL_SIZE = 1;
     private static final int QUEUE_SIZE = 10000;
@@ -192,6 +202,13 @@ public class PacketInListener implements PacketProcessingListener {
         return concatenateByteArrays(etherTypeBytes, payload);
     }
 
+    private byte[] popNsh(final byte[] rawPacket) {
+        int nshLan = getNshLen(rawPacket);
+        LOG.info("nsh len {}", nshLan);
+        final byte[] payload = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP + (4 * nshLan) , rawPacket.length);
+        return payload;
+    }
+
     /**
      * Given a raw packet, return the SrcIp
      *
@@ -244,7 +261,7 @@ public class PacketInListener implements PacketProcessingListener {
             return 0;
         }
 
-        return shortVal >= 0 ? shortVal : 0x10000 + shortVal;
+        return shortVal >= 0 ? shortVal : shortVal & 0xFFFF;
     }
 
     byte[] concatenateByteArrays(byte[] a, byte[] b) {
@@ -288,6 +305,38 @@ public class PacketInListener implements PacketProcessingListener {
 
         int ipTtl = packShort(ipFirtsByte, 1);
         return ipTtl;
+    }
+
+
+    private int getNshLen(final byte[] rawPacket) {
+        final byte[] ipFirtsByte = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP + 1, PACKET_OFFSET_IP + 1 + 1);
+
+        int nshLen = packShort(ipFirtsByte, 1);
+        return nshLen;
+    }
+
+    private int getNsp(final byte[] rawPacket) {
+        final byte[] frst2Bytes = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP + 4, PACKET_OFFSET_IP + 4 + 2);
+        final byte[] secondByte = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP + 6, PACKET_OFFSET_IP + 6 + 1);
+
+        int left = packShort(frst2Bytes, 2);
+        int right = packShort(secondByte, 1);
+        int nsp = (left << 16) | (right & 0xFFFF);
+        return nsp;
+    }
+
+    private int getNsi(final byte[] rawPacket) {
+        final byte[] ipFirtsByte = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP + 7, PACKET_OFFSET_IP + 7 + 1);
+
+        int nsi = (0x000000FF & ((int)ipFirtsByte[0]));
+        return nsi;
+    }
+
+    private int getUDPPort(final byte[] rawPacket) {
+        final byte[] ipFirtsByte = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_UDP + 2, PACKET_OFFSET_UDP + 4);
+
+        int udpPort = packShort(ipFirtsByte, 2);
+        return udpPort;
     }
 
 
@@ -422,6 +471,29 @@ public class PacketInListener implements PacketProcessingListener {
         }
     }
 
+    private byte[] getPayLoad(final byte[] inPacket) {
+        int eth = getEtherType(inPacket);
+        LOG.info("getPayLoad {} ", eth);
+
+        // Get the EtherType and check that its an IP packet
+        if (eth != ETHERTYPE_IPV4 && eth != VLAN && eth != ETHERTYPE_NSH) {
+            LOG.error("PacketInListener discarding NON-IPv4");
+            return null;
+        }
+
+        byte[] rawPacketVlan = inPacket;
+        if (eth == VLAN) {
+            rawPacketVlan = popVlan(inPacket);
+            eth = getEtherType(rawPacketVlan);
+            if (eth != ETHERTYPE_IPV4) {
+                LOG.error("PacketInListener discarding NON-IPv4 after VLAN");
+                return null;
+            }
+        }
+        return  rawPacketVlan;
+    }
+
+
 
     /**
      * A thread class used to detect pp and generate a SFC trace
@@ -442,40 +514,51 @@ public class PacketInListener implements PacketProcessingListener {
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_EGRESS_PROBE_COOKIE)) {
                 packetDirec = "OUT";
             }
-            final byte[] rawPacketOrig = packetReceived.getPayload();
-            int eth = getEtherType(rawPacketOrig);
-            // Get the EtherType and check that its an IP packet
-            if (eth != ETHERTYPE_IPV4 && eth != VLAN) {
-                LOG.debug("PacketInListener discarding NON-IPv4");
+
+            byte[] rawPacketVlan = getPayLoad(packetReceived.getPayload());
+
+            if (rawPacketVlan == null) {
                 return;
             }
 
-            byte[] rawPacket = rawPacketOrig;
-            if (eth == VLAN) {
-                rawPacket = popVlan(rawPacketOrig);
-                eth = getEtherType(rawPacket);
-                if (eth != ETHERTYPE_IPV4) {
-                    LOG.debug("PacketInListener discarding NON-IPv4 after VLAN");
-                    return;
-                }
+
+            byte[] rawPacketNSH = rawPacketVlan;
+            // test if the packet is encapsulated with VxLAN
+            int eth = getEtherType(rawPacketVlan);
+            LOG.info("proto {} ", eth);
+            int nsp = 0;
+            int nsi = 0;
+            if (eth == ETHERTYPE_NSH) {
+                LOG.info("NSH");
+                nsp = getNsp(rawPacketNSH);
+                nsi = getNsi(rawPacketNSH);
+                LOG.info("NSH nsi {}", nsi);
+                LOG.info("NSH nsp {}", nsp);
+                rawPacketNSH = popNsh(rawPacketVlan);
             }
+
+            byte[] rawPacket = getPayLoad(rawPacketNSH);
+
+            int eth2 = getEtherType(rawPacket);
+
+            while (eth2 == ETHERTYPE_NSH) {
+                rawPacketNSH = popNsh(rawPacket);
+                rawPacket = getPayLoad(rawPacketNSH);
+                LOG.info("vamo la {}", getEtherType(rawPacket));
+                eth2 = getEtherType(rawPacket);
+            }
+
+
+            if (rawPacket == null) {
+                return;
+            }
+
+            LOG.info("coninue");
+
 
             if (getEcn(rawPacket) != PROBE_PACKET_FULL_TRACE_ID && getEcn(rawPacket) != PROBE_PACKET_TIME_STAMP_ID) {
                 return;
             }
-
-            // Get the SrcIp and DstIp Addresses
-//            String pktSrcIpStr = getSrcIpStr(rawPacket);
-//            if (pktSrcIpStr == null) {
-//                LOG.error("PacketInListener Cant get Src IP address, discarding packet");
-//                return;
-//            }
-//
-//            String pktDstIpStr = getDstIpStr(rawPacket);
-//            if (pktDstIpStr == null) {
-//                LOG.error("PacketInListener Cant get Src IP address, discarding packet");
-//                return;
-//            }
 
 
             // Get the metadata
@@ -526,12 +609,15 @@ public class PacketInListener implements PacketProcessingListener {
             ServiceFunctionForwarder sff = topo.readSFF(nodeName);
 
             // get next output port
-            BigInteger metadataPort = packetReceived.getMatch().getMetadata().getMetadata();
             String outSfDpl = null;
-            if (metadataPort != null) {
-                outSfDpl = topo.readSfDplFromSff(sff, metadataPort.toString());
-            } else {
-                LOG.error("could not read metadata");
+            BigInteger metadataPort = new BigInteger("0");
+            if (packetReceived.getMatch().getMetadata() != null) {
+                metadataPort = packetReceived.getMatch().getMetadata().getMetadata();
+                if (metadataPort != null) {
+                    outSfDpl = topo.readSfDplFromSff(sff, metadataPort.toString());
+                } else {
+                    LOG.error("could not read metadata");
+                }
             }
 
             // get input from previous SF
@@ -553,8 +639,18 @@ public class PacketInListener implements PacketProcessingListener {
                     traceOut = traceMap.get(packetID);
                 }
 
+                if (outSfDpl == null) {
+                    // if table zero pakcet it not going to an SF. Pakcet is going to other siwtch.
+                    BigInteger metadataTalbeId = new BigInteger(TABLE_ZERO_IDENTIFICATION, COOKIE_BIGINT_HEX_RADIX);
+                    LOG.info("metadataPort.toString()  {}  {}", metadataPort,  metadataTalbeId);
+                    if (metadataPort != metadataTalbeId) {
+                        sfOut = topo.readSfNameByRsp(nsp, nsi);
+                    }
+                    metadataPort = new BigInteger("0");
+                } else {
+                    sfOut = topo.readSfName(outSfDpl);
+                }
 
-                sfOut = topo.readSfName(outSfDpl);
                 TraceElement traceElement = TraceElement.setTraceNode(sff, sfOut, Integer.parseInt(parts[2]), metadataPort.intValue(), getIpTtl(rawPacket));
 
                 if (traceElement == null) {
@@ -567,7 +663,7 @@ public class PacketInListener implements PacketProcessingListener {
                 String logTrace = String.format("size M %d, T %d -> [%d] -> %s [%d] \n",
                         traceMap.size(), traceOut.size(), packetID, traceElement.getTraceHop(), traceElement.getInTime());
                 traceLogWriter.append(logTrace);
-
+                LOG.info("{}", logTrace);
                 //traceWriter.append(traceElement.getTraceHop());
 
                 //Collections.sort(traceOut);

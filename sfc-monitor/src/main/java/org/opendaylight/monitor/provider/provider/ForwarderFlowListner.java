@@ -40,6 +40,7 @@ import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.Nodes;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.Node;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.NodeKey;
 import org.opendaylight.sfc.ofrenderer.openflow.SfcOfFlowProgrammerImpl;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.openflowplugin.extension.nicira.action.rev140714.nodes.node.table.flow.instructions.instruction.instruction.apply.actions._case.apply.actions.action.action.NxActionPopNshNodesNodeTableFlowApplyActionsCase;
 import org.opendaylight.yangtools.concepts.ListenerRegistration;
 import org.opendaylight.yangtools.yang.binding.InstanceIdentifier;
 import org.slf4j.Logger;
@@ -79,6 +80,7 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
     private ListenerRegistration<ForwarderFlowListner> listenerRegistration;
     private WriteFlow writeFlow = new WriteFlow();
 
+    public static final short TABLE_INDEX_INGRESS = 0;
     public static final short TABLE_INDEX_TRANSPORT_EGRESS = 10;
     public static final int COOKIE_BIGINT_HEX_RADIX = 16;
     public static final BigInteger TRANSPORT_EGRESS_COOKIE =
@@ -126,27 +128,34 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
             Flow flow = mod.getDataAfter();
             final String nodeName = key.firstKeyOf(Node.class, NodeKey.class).getId().getValue();
 
-            Long cookieLong = flow.getCookie().getValue().longValue();
-            //LOG.info("coockie {}", flow.getCookie().getValue().toString(16));
-            //LOG.info("coockie - {}", Long.toHexString(cookieLong));
+            long cookieLong = 0;
+            if (flow.getCookie() != null) {
+                cookieLong = flow.getCookie().getValue().longValue();
+            }
 
             if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && Long.toHexString(cookieLong).toUpperCase().startsWith(SfcOfFlowProgrammerImpl.TRANSPORT_EGRESS_COOKIE_STR_BASE)) {
 
                 //action to only send packets to next table
                 LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
                 FlowBuilder modifiedFlow = new FlowBuilder(flow);
-                modifiedFlow = addTraceRule(modifiedFlow);
+                modifiedFlow = addTraceRule(modifiedFlow, false);
                 writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
 
-            }// else if (flow.getTableId() == TABLE_INDEX_TRANSPORT_EGRESS && flow.getCookie().getValue().equals(TRANSPORT_EGRESS_COOKIE.add(BigInteger.ONE))) {
-//                // trace action to send packet to controller
-//                LOG.info("SEND TRACE FLOW TO - ----- {} ", nodeName);
-//                FlowBuilder newFlow = new FlowBuilder(flow);
-//                newFlow = addTraceRule(newFlow);
-//                writeFlow.writeFlowToConfig(nodeName, newFlow);
-//            }
-        }
+            } else if (flow.getTableId() == TABLE_INDEX_INGRESS) {
 
+                if (cookieLong != PacketInListener.TRACE_FULL_COKIE.longValue()){
+                    if (getOutputPort(flow.getInstructions().getInstruction()) != null) {
+                        // just write flows for non POP NSH rules (bug on OVS??)
+                        if (!IsPopNshRule(flow.getInstructions().getInstruction())) {
+                            LOG.info("SEND TRACE FLOW TO Classifier - ----- {} ", nodeName);
+                            FlowBuilder modifiedFlow = new FlowBuilder(flow);
+                            modifiedFlow = addTraceRule(modifiedFlow, true);
+                            writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public void writeFlows(String nodeName, Flow flow) {
@@ -154,7 +163,7 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         //action to only send packets to next table
         LOG.info("SEND TIMESTAMP FLOW TO - ----- {} ", nodeName);
         FlowBuilder modifiedFlow = new FlowBuilder(flow);
-        modifiedFlow = addTraceRule(modifiedFlow);
+        modifiedFlow = addTraceRule(modifiedFlow, false);
         writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
 
         try {
@@ -171,7 +180,43 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
     }
 
-    private FlowBuilder addTraceRule(FlowBuilder flowBuilder) {
+    private FlowBuilder testFlow() {
+
+        LOG.info("testFlow");
+        MatchBuilder newMatch = new MatchBuilder();
+        SfcOpenflowUtils.addMatchDstMac(newMatch, "00:00:00:00:00:02");
+
+        int order = 0;
+        List<Action> actionList = new ArrayList<Action>();
+        Action actionSetNwDst = SfcOpenflowUtils.createActionNxSetTunIpv4Dst("10.10.10.10", order++);
+        actionList.add(actionSetNwDst);
+        actionList.add(SfcOpenflowUtils.createActionNxLoadTunGpeNp((short) 0x4, order++));
+
+        actionList.add(SfcOpenflowUtils.createActionOutPort(OutputPortValues.INPORT.toString(), order++));
+
+        ApplyActionsBuilder aab = new ApplyActionsBuilder();
+        aab.setAction(actionList);
+
+        int ibOrder = 0;
+        InstructionBuilder actionsIb = new InstructionBuilder();
+        actionsIb.setInstruction(new ApplyActionsCaseBuilder().setApplyActions(aab.build()).build());
+        actionsIb.setKey(new InstructionKey(ibOrder));
+        actionsIb.setOrder(ibOrder++);
+
+        // Put our Instruction in a list of Instructions
+        InstructionsBuilder isb = SfcOpenflowUtils.createInstructionsBuilder(actionsIb);
+
+
+        FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
+                (short) 0,
+                50000,
+                PacketInListener.TRACE_FULL_COKIE,
+                "test_flow", newMatch, isb);
+
+        return newFlowBuilder;
+    }
+
+    private FlowBuilder addTraceRule(FlowBuilder flowBuilder, Boolean tableZero) {
 
         Instructions instruction = flowBuilder.getInstructions();
         List<Instruction> instructionList = instruction.getInstruction();
@@ -212,7 +257,16 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
 
         // add write metadata with port information
-        BigInteger metadataPort = new BigInteger(getOutputPort(instructionList), COOKIE_BIGINT_HEX_RADIX);
+        String outPort;
+        if(tableZero) { // identify table zero rule by wirte metadata code
+            outPort = PacketInListener.TABLE_ZERO_IDENTIFICATION;
+        } else {
+            outPort = getOutputPort(instructionList);
+            if (String.valueOf("INPORT").equals(outPort)) {
+                outPort = "0";
+            }
+        }
+        BigInteger metadataPort = new BigInteger(outPort, COOKIE_BIGINT_HEX_RADIX);
 
         int ibOrder = instructionList.size();
         addMetadata(instructionList, metadataPort, ibOrder);
@@ -362,6 +416,23 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
             }
         }
         return null;
+    }
+
+    private Boolean IsPopNshRule(List<Instruction> instructionList) {
+
+        //search output action get forwarder port and remove this action to be replaced by controller action
+        for (Instruction instruct : instructionList) {
+            if (instruct.getInstruction() instanceof ApplyActionsCase) {
+                ApplyActionsCase actionscase = (ApplyActionsCase) instruct.getInstruction();
+                ApplyActions actions = actionscase.getApplyActions();
+                for (Action action : actions.getAction()) {
+                    if (action.getAction() instanceof NxActionPopNshNodesNodeTableFlowApplyActionsCase) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private Instruction setActionGoToTable(final short toTable, int order) {

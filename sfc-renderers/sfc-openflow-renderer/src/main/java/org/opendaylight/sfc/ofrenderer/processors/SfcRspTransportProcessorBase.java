@@ -186,12 +186,15 @@ public abstract class SfcRspTransportProcessorBase {
             this.sffGraph.setSffEgressDpl(sff.getName(), pathId, sffDplList.get(0).getName());
             return true;
         }
-        SffDataPlaneLocatorName egreesNameDpl = null;
+//        SffDataPlaneLocatorName egreesNameDpl = null;
         for (SffDataPlaneLocator sffDpl : sffDplList) {
             LOG.debug("try to match sffDpl name: {}, type: {}", sffDpl.getName(),
                     sffDpl.getDataPlaneLocator().getTransport().getName());
             if (alreadySetSffDpl != null) {
                 if (sffDpl.getName().equals(alreadySetSffDpl.getName())) {
+
+
+
                     continue;
                 }
             }
@@ -200,18 +203,20 @@ public abstract class SfcRspTransportProcessorBase {
                     // the SFF ingressDpl was already set, so we need to set the egress
                     SffDataPlaneLocatorName egrees = sffDpl.getName();
                     // if there is a dpl on classifier equals to (trsnport and vlanId) a dpl from sff it is the egrees of the chain
-                    List<SffDataPlaneLocator> sffDpls = SfcProviderServiceForwarderAPI.readServiceFunctionForwarderDataPlaneLocators(sff.getName());
-                    if (sffDpls != null) {
-                        for (SffDataPlaneLocator dpl : sffDpls) {
-                            SffDataPlaneLocatorName egreesDpl = searchDplOnClassifier(dpl, rspTransport);
-                            if (egreesDpl != null) {
-                                egrees = egreesDpl;
+                    if(sffDpl.getDataPlaneLocator().getLocatorType().toString().equals("service-locator:mac")) {
+                        List<SffDataPlaneLocator> sffDpls = SfcProviderServiceForwarderAPI.readServiceFunctionForwarderDataPlaneLocators(sff.getName());
+                        if (sffDpls != null) {
+                            for (SffDataPlaneLocator dpl : sffDpls) {
+                                SffDataPlaneLocatorName egreesDpl = searchDplOnClassifier(dpl, rspTransport);
+                                if (egreesDpl != null) {
+                                    egrees = egreesDpl;
+                                }
                             }
                         }
                     }
-                    if (egreesNameDpl != null) {
-                        egrees = egreesNameDpl;
-                    }
+//                    if (egreesNameDpl != null) {
+//                        egrees = egreesNameDpl;
+//                    }
                     this.sffGraph.setSffEgressDpl(sff.getName(), pathId, egrees);
 
 

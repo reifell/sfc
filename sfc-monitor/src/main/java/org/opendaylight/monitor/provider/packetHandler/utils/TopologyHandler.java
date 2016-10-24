@@ -11,6 +11,10 @@ import com.google.common.base.Preconditions;
 
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.sfc.provider.api.SfcDataStoreAPI;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.common.rev151017.SfName;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.rsp.rev140701.RenderedServicePaths;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.rsp.rev140701.rendered.service.paths.RenderedServicePath;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.rsp.rev140701.rendered.service.paths.rendered.service.path.RenderedServicePathHop;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.function.base.SfDataPlaneLocator;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunction;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.ServiceFunctionForwarders;
@@ -19,6 +23,7 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev1407
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.service.function.forwarder.ServiceFunctionDictionary;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.ServiceFunctions;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.IpPortLocator;
 import org.opendaylight.yang.gen.v1.urn.ericsson.params.xml.ns.yang.sfc.sff.ofs.rev150408.SffDataPlaneLocator1;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Uri;
 
@@ -152,4 +157,54 @@ public class TopologyHandler {
         return null;
     }
 
-}
+
+    public ServiceFunction readSfNameByIp(String Ip) {
+        if (Ip != null) {
+            InstanceIdentifier<ServiceFunctions> sfIID =
+                    InstanceIdentifier.create(ServiceFunctions.class);
+            ServiceFunctions sfs = SfcDataStoreAPI.readTransactionAPI(sfIID, LogicalDatastoreType.CONFIGURATION);
+
+            for (ServiceFunction sf : sfs.getServiceFunction()) {
+                for (SfDataPlaneLocator sfDpl : sf.getSfDataPlaneLocator()) {
+                    IpPortLocator dstSfLocator = (IpPortLocator) sfDpl.getLocatorType();
+                    String sfIp = new String(dstSfLocator.getIp().getValue());
+                    if (sfIp.equals(sfIp)) {
+                        return sf;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public ServiceFunction readSfNameByRsp(int nsp, int nsi) {
+        InstanceIdentifier<RenderedServicePaths> rspIID =
+                InstanceIdentifier.create(RenderedServicePaths.class);
+        RenderedServicePaths rsps = SfcDataStoreAPI.readTransactionAPI(rspIID, LogicalDatastoreType.OPERATIONAL);
+        SfName sfName = null;
+        for (RenderedServicePath rsp : rsps.getRenderedServicePath()) {
+            if (nsp == rsp.getPathId()) {
+
+                for (RenderedServicePathHop hop : rsp.getRenderedServicePathHop()) {
+                    if ((255 - nsi) == hop.getHopNumber()) {
+                        sfName = hop.getServiceFunctionName();
+                        break;
+                    }
+                }
+            }
+        }
+        if (sfName != null) {
+            InstanceIdentifier<ServiceFunctions> sfIID =
+                    InstanceIdentifier.create(ServiceFunctions.class);
+            ServiceFunctions sfs = SfcDataStoreAPI.readTransactionAPI(sfIID, LogicalDatastoreType.CONFIGURATION);
+            for (ServiceFunction sf : sfs.getServiceFunction()) {
+                if (sfName.equals(sf.getName())) {
+                    return sf;
+                }
+            }
+
+        }
+        return null;
+    }
+
+    }
