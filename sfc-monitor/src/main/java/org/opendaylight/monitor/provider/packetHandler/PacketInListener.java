@@ -204,7 +204,6 @@ public class PacketInListener implements PacketProcessingListener {
 
     private byte[] popNsh(final byte[] rawPacket) {
         int nshLan = getNshLen(rawPacket);
-        LOG.info("nsh len {}", nshLan);
         final byte[] payload = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP + (4 * nshLan) , rawPacket.length);
         return payload;
     }
@@ -639,8 +638,6 @@ public class PacketInListener implements PacketProcessingListener {
                 } else {
                     sfOut = topo.readSfName(outSfDpl);
                 }
-
-                LOG.error("ttl {}", getIpTtl(rawPacket));
                 TraceElement traceElement = TraceElement.setTraceNode(sff, sfOut, Integer.parseInt(parts[2]), metadataPort.intValue(), getIpTtl(rawPacket));
 
                 if (traceElement == null) {
