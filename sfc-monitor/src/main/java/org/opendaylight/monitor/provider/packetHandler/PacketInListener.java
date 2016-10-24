@@ -473,7 +473,6 @@ public class PacketInListener implements PacketProcessingListener {
 
     private byte[] getPayLoad(final byte[] inPacket) {
         int eth = getEtherType(inPacket);
-        LOG.info("getPayLoad {} ", eth);
 
         // Get the EtherType and check that its an IP packet
         if (eth != ETHERTYPE_IPV4 && eth != VLAN && eth != ETHERTYPE_NSH) {
@@ -521,19 +520,14 @@ public class PacketInListener implements PacketProcessingListener {
                 return;
             }
 
-
             byte[] rawPacketNSH = rawPacketVlan;
             // test if the packet is encapsulated with VxLAN
             int eth = getEtherType(rawPacketVlan);
-            LOG.info("proto {} ", eth);
             int nsp = 0;
             int nsi = 0;
             if (eth == ETHERTYPE_NSH) {
-                LOG.info("NSH");
                 nsp = getNsp(rawPacketNSH);
                 nsi = getNsi(rawPacketNSH);
-                LOG.info("NSH nsi {}", nsi);
-                LOG.info("NSH nsp {}", nsp);
                 rawPacketNSH = popNsh(rawPacketVlan);
             }
 
@@ -541,20 +535,16 @@ public class PacketInListener implements PacketProcessingListener {
 
             int eth2 = getEtherType(rawPacket);
 
+            // classifier hop seem s to encap more than once
             while (eth2 == ETHERTYPE_NSH) {
                 rawPacketNSH = popNsh(rawPacket);
                 rawPacket = getPayLoad(rawPacketNSH);
-                LOG.info("vamo la {}", getEtherType(rawPacket));
                 eth2 = getEtherType(rawPacket);
             }
-
 
             if (rawPacket == null) {
                 return;
             }
-
-            LOG.info("coninue");
-
 
             if (getEcn(rawPacket) != PROBE_PACKET_FULL_TRACE_ID && getEcn(rawPacket) != PROBE_PACKET_TIME_STAMP_ID) {
                 return;
@@ -642,8 +632,7 @@ public class PacketInListener implements PacketProcessingListener {
                 if (outSfDpl == null) {
                     // if table zero pakcet it not going to an SF. Pakcet is going to other siwtch.
                     BigInteger metadataTalbeId = new BigInteger(TABLE_ZERO_IDENTIFICATION, COOKIE_BIGINT_HEX_RADIX);
-                    LOG.info("metadataPort.toString()  {}  {}", metadataPort,  metadataTalbeId);
-                    if (metadataPort != metadataTalbeId) {
+                    if (!metadataPort.equals(metadataTalbeId)) {
                         sfOut = topo.readSfNameByRsp(nsp, nsi);
                     }
                     metadataPort = new BigInteger("0");
@@ -651,6 +640,7 @@ public class PacketInListener implements PacketProcessingListener {
                     sfOut = topo.readSfName(outSfDpl);
                 }
 
+                LOG.error("ttl {}", getIpTtl(rawPacket));
                 TraceElement traceElement = TraceElement.setTraceNode(sff, sfOut, Integer.parseInt(parts[2]), metadataPort.intValue(), getIpTtl(rawPacket));
 
                 if (traceElement == null) {
@@ -663,7 +653,9 @@ public class PacketInListener implements PacketProcessingListener {
                 String logTrace = String.format("size M %d, T %d -> [%d] -> %s [%d] \n",
                         traceMap.size(), traceOut.size(), packetID, traceElement.getTraceHop(), traceElement.getInTime());
                 traceLogWriter.append(logTrace);
-                LOG.info("{}", logTrace);
+
+
+
                 //traceWriter.append(traceElement.getTraceHop());
 
                 //Collections.sort(traceOut);
