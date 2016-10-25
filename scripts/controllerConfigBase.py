@@ -21,6 +21,8 @@ class ConfigBase:
     SERVICE_CLASSIFICATION_FUNTION = '/restconf/config/service-function-classifier:service-function-classifiers'
     SERVICE_RENDERED_PATH_DEL = '/restconf/operations/rendered-service-path:delete-rendered-path'
     CONTEXT_METADATA = '/restconf/config/service-function-path-metadata:service-function-metadata'
+    DISABLE_STATISTICS = '/restconf/operations/statistics-manager-control:change-statistics-work-mode/'
+
 
     deleteAll=False
 
@@ -88,7 +90,7 @@ class ConfigBase:
                 if 'flow' in key1:
                     for key2 in key1['flow']:
                         if 'flow-name' in key2:
-                            if key2 != None and key2['flow-name'] == 'nextHop' and key2['priority'] == 350:
+                            if key2 != None and key2['flow-name'] == 'nextHop' and key2['priority'] == 450:
                                 vlanid.append(key2['match']['vlan-match']['vlan-id']['vlan-id'])
         print vlanid
         if not vlanid:

@@ -178,14 +178,11 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
 
         int j = 0;
         List<Action> newActionList = new ArrayList<>();
-        LOG.info("-------------------------------------------------------------------------------------------------");
-        LOG.info("instructions [{}] -  {}", instructionList.size(), instruction.toString());
         for (Instruction instruct : instructionList) {
             if (instruct.getInstruction() instanceof ApplyActionsCase) {
                 ApplyActionsCase actionscase = (ApplyActionsCase) instruct.getInstruction();
                 ApplyActions actions = actionscase.getApplyActions();
                 newActionList.add(SfcOpenflowUtils.createActionDecTTL(0));
-                LOG.info("actions [{}] -  {}", actions.getAction().size(), actions.toString());
                 for (Action action : actions.getAction()) {
                     ActionBuilder ab = createActionBuilder(action.getOrder() + 1);
                     ab.setAction(action.getAction());
@@ -195,8 +192,6 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
             }
             j++;
         }
-
-        LOG.info("newActionList [{}] ", newActionList);
 
         instructionList.remove(j);
         // add actions

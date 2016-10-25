@@ -92,8 +92,8 @@ class odlConf(ConfigBase):
         sff['service-function-forwarder-ovs:ovs-bridge'] = {}
         sff['service-function-forwarder-ovs:ovs-bridge']['bridge-name'] = swName
         sff['service-function-forwarder-ovs:ovs-bridge']['openflow-node-id'] = "openflow:" + id
-        sff['service-function-forwarder-ovs:ovs-node'] = {}
-        sff['service-function-forwarder-ovs:ovs-node']['node-id'] = "/opendaylight-inventory:nodes/opendaylight-inventory:node[opendaylight-inventory:id='openflow:"+id+"']"
+        #sff['service-function-forwarder-ovs:ovs-node'] = {}
+        #sff['service-function-forwarder-ovs:ovs-node']['node-id'] = "/opendaylight-inventory:nodes/opendaylight-inventory:node[opendaylight-inventory:id='openflow:"+id+"']"
         sff['sff-data-plane-locator'] = []
 
         sfdpl = {}
@@ -196,4 +196,12 @@ class odlConf(ConfigBase):
         rsp['input']['symmetric'] = "true"#"true"
 
         return rsp
+
+    def disableStatistics (self):
+        input = {}
+        input['input'] = {}
+        input['input']['mode'] = "FULLY_DISABLED"
+        return  input
+
+
 
