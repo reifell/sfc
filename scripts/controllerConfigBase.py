@@ -21,6 +21,8 @@ class ConfigBase:
     SERVICE_CLASSIFICATION_FUNTION = '/restconf/config/service-function-classifier:service-function-classifiers'
     SERVICE_RENDERED_PATH_DEL = '/restconf/operations/rendered-service-path:delete-rendered-path'
     CONTEXT_METADATA = '/restconf/config/service-function-path-metadata:service-function-metadata'
+    DISABLE_STATISTICS = '/restconf/operations/statistics-manager-control:change-statistics-work-mode/'
+
 
     deleteAll=False
 
