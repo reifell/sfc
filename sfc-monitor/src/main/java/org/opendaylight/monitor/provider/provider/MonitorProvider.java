@@ -8,6 +8,8 @@
 
 package org.opendaylight.monitor.provider.provider;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.opendaylight.controller.sal.binding.api.BindingAwareBroker;
 import org.opendaylight.controller.sal.binding.api.NotificationProviderService;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.sal.binding.api.RpcProviderRegistry;
@@ -16,6 +18,9 @@ import org.opendaylight.monitor.provider.packetHandler.PacketOutSender;
 import org.opendaylight.yangtools.concepts.Registration;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +42,56 @@ public class MonitorProvider implements AutoCloseable {
     NotificationProviderService notificationService = null;
     PacketInListener packetInListener = null;
     PacketOutSender packetOutSender = null;
+    private static MonitorProvider monitorProviderObj = null;
+
+    protected static DataBroker dataProvider;
+    protected static BindingAwareBroker broker;
+
+    private static final long SHUTDOWN_TIME = 5;
+    private static final ThreadFactory THREAD_FACTORY =
+            new ThreadFactoryBuilder().setNameFormat("SFC-Monitor-%d").setDaemon(false).build();
+
+    public static final int EXECUTOR_THREAD_POOL_SIZE = 100;
+
+    private static final ExecutorService executor =
+            Executors.newFixedThreadPool(EXECUTOR_THREAD_POOL_SIZE, THREAD_FACTORY);
+
+    public static MonitorProvider getMonitorProviderObj() {
+        return MonitorProvider.monitorProviderObj;
+    }
+
+    public MonitorProvider() {
+        if (monitorProviderObj == null) {
+            monitorProviderObj = this;
+            LOG.info("MonitorProviderObj Initialized");
+        }
+    }
+
+    public ExecutorService getExecutor() {
+        return executor;
+    }
+
+    public void setDataProvider(DataBroker dataProvider) {
+        MonitorProvider.dataProvider = dataProvider;
+    }
+
+    public DataBroker getDataProvider() {
+        return MonitorProvider.dataProvider;
+    }
+
+    public void setBroker(BindingAwareBroker broker) {
+        this.broker = broker;
+    }
+
+    public BindingAwareBroker getBroker() {
+        return this.broker;
+    }
+
+    public static MonitorProvider getOpendaylightSfcObj() {
+        return MonitorProvider.monitorProviderObj;
+    }
+
+
 
     public MonitorProvider(DataBroker dataBroker, NotificationProviderService notificationService, RpcProviderRegistry rpcProvider) {
         LOG.info("MonitorProvider starting the MonitorProvider plugin...");

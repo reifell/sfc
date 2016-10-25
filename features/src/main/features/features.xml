@@ -86,8 +86,6 @@
         <feature version="${openflowplugin.version}">odl-openflowplugin-flow-services</feature>
         <feature version="${openflowplugin.version}">odl-openflowplugin-nxm-extensions</feature>
         <bundle>mvn:org.opendaylight.sfc/sfc-monitor/{{VERSION}}</bundle>
-        <bundle>mvn:org.opendaylight.sfc/sfc-openflow-utils/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-monitor-initial.xml">mvn:org.opendaylight.sfc/sfc-monitor/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-vpp-renderer" version="${project.version}" description="OpenDaylight :: sfc-renderers :: VPP Renderer ">
