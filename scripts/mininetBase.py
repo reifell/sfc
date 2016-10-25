@@ -3,6 +3,7 @@ from mininet.net import Mininet
 from mininet.node import Controller, RemoteController
 from mininet.cli import CLI
 from mininet.link import Intf
+from mininet.clean import Cleanup
 from mininet.log import setLogLevel, info
 from subprocess import call
 import subprocess
@@ -25,12 +26,13 @@ class sfc():
 
     def deployTopo(self):
 
-
         self.topo = self.net.start()
         time.sleep(1)
         # clean previous rules
         self.odl.clean(self.callBackConfs['chain'], self.callBackConfs['sw'])
         time.sleep(1)
+        self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.DISABLE_STATISTICS, self.odl.disableStatistics(), True)
+
 
         self.deploySwConf()
         self.deployHostConf()
@@ -46,9 +48,23 @@ class sfc():
         CLI(self.net)
         self.odl.clean(self.callBackConfs['chain'], self.callBackConfs['sw'])
         self.cleanProcess()
+        Cleanup()
 
     def __init__(self):
         self.odl.readParameters()
+        call('mn --clean', shell=True)
+        time.sleep(1)
+
+        #reset OVS to get new uuid on OVSDB
+        call('service openvswitch-switch stop', shell=True)
+        call('rm -rf /var/log/openvswitch/*', shell=True)
+        call('rm -rf /etc/openvswitch/conf.db', shell=True)
+        time.sleep(5)
+        call('service openvswitch-switch start', shell=True)
+        call('ovs-vsctl set-manager tcp:%s' %self.YOUR_CONTROLLER_IP, shell=True)
+
+        call('mn --clean', shell=True)
+
         self.net = Mininet(controller=None)
         self.net.addController('c0', controller=RemoteController, ip=self.odl.controller, port=6633)
 
