@@ -46,6 +46,8 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfg.rev1502
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfp.rev140701.service.function.paths.ServiceFunctionPath;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sfp.rev140701.service.function.paths.ServiceFunctionPathBuilder;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sft.rev140701.service.function.types.ServiceFunctionType;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.Nsh;
+import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.Transport;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.VxlanGpe;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sl.rev140701.data.plane.locator.locator.type.Ip;
 import org.opendaylight.yang.gen.v1.urn.intel.params.xml.ns.yang.sfc.sfst.rev150312.LoadBalance;
@@ -67,7 +69,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Reinaldo Penno (rapenno@gmail.com)
  * @version 0.1
- *          <p>
+ *
  * @since 2014-11-04
  */
 public class SfcProviderRenderedPathAPI {
@@ -487,6 +489,15 @@ public class SfcProviderRenderedPathAPI {
             renderedServicePathBuilder.setTransportType(serviceFunctionPath.getTransportType());
         }
 
+        // If no encapsulation type specified, default is NSH for VxlanGpe and Transport
+        // in any other case
+        renderedServicePathBuilder.setSfcEncapsulation(
+                serviceFunctionPath.getSfcEncapsulation() != null ?
+                        serviceFunctionPath.getSfcEncapsulation() :
+                        renderedServicePathBuilder.getTransportType().equals(VxlanGpe.class) ?
+                                Nsh.class :
+                                Transport.class);
+
         RenderedServicePathKey renderedServicePathKey =
                 new RenderedServicePathKey(renderedServicePathBuilder.getName());
         InstanceIdentifier<RenderedServicePath> rspIID;
@@ -719,13 +730,13 @@ public class SfcProviderRenderedPathAPI {
             SffDataPlaneLocator sffDataPlaneLocator = SfcProviderServiceForwarderAPI
                 .readServiceFunctionForwarderDataPlaneLocator(sffName, sffLocatorName);
 
-            if ((sffDataPlaneLocator != null) && (sffDataPlaneLocator.getDataPlaneLocator() != null)
-                    && (sffDataPlaneLocator.getDataPlaneLocator().getLocatorType() != null)
-                    && (sffDataPlaneLocator.getDataPlaneLocator().getLocatorType().getImplementedInterface() != null)
-                    && (sffDataPlaneLocator.getDataPlaneLocator()
+            if (sffDataPlaneLocator != null && sffDataPlaneLocator.getDataPlaneLocator() != null
+                    && sffDataPlaneLocator.getDataPlaneLocator().getLocatorType() != null
+                    && sffDataPlaneLocator.getDataPlaneLocator().getLocatorType().getImplementedInterface() != null
+                    && sffDataPlaneLocator.getDataPlaneLocator()
                         .getLocatorType()
                         .getImplementedInterface()
-                        .getSimpleName() != null)) {
+                        .getSimpleName() != null) {
 
                 String type = sffDataPlaneLocator.getDataPlaneLocator()
                     .getLocatorType()
@@ -772,9 +783,9 @@ public class SfcProviderRenderedPathAPI {
      * list
      * <p>
      *
-     * @param serviceFunctionSchedulerType
+     * @param serviceFunctionSchedulerType schedulertype for the Service Function
      * @param serviceFunctionTypeList ServiceFunctionTypeIdentity list
-     * @return RenderedServicePathFirstHop.
+     * @return RenderedServicePathFirstHop first hop of the rendered path
      */
     public static RenderedServicePathFirstHop readRspFirstHopBySftList(
             Class<? extends ServiceFunctionSchedulerTypeIdentity> serviceFunctionSchedulerType,
@@ -863,7 +874,7 @@ public class SfcProviderRenderedPathAPI {
             return null;
         }
 
-        if ((serviceFunctionPath.isSymmetric() != null) && serviceFunctionPath.isSymmetric()) {
+        if (serviceFunctionPath.isSymmetric() != null && serviceFunctionPath.isSymmetric()) {
             revRenderedServicePath =
                     SfcProviderRenderedPathAPI.createSymmetricRenderedServicePathAndState(renderedServicePath);
             if (revRenderedServicePath == null) {

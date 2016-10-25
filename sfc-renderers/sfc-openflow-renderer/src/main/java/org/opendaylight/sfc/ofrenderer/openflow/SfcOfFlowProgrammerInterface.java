@@ -11,7 +11,11 @@ package org.opendaylight.sfc.ofrenderer.openflow;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+
+import org.opendaylight.sfc.genius.util.appcoexistence.SfcTableIndexMapper;
 import org.opendaylight.sfc.ofrenderer.sfg.GroupBucketInfo;
+import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.yang.types.rev130715.MacAddress;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.list.Action;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.NodeId;
 
 
@@ -45,11 +49,11 @@ public interface SfcOfFlowProgrammerInterface {
      * Deletes all flows created for a particular RSP and removes
      * initialization flows from SFFs if the last RSP was removed.
      *
-     * @param rspId ID of RSP
+     * @param rspId the id of the RSP to be deleted
      *
      * @return Node IDs from which initialization flows were removed.
      */
-    public Set<NodeId> deleteRspFlows(final Long rspId);
+    public Set<NodeId> deleteRspFlows(final long rspId);
 
     // Write any buffered flows to the data store
     public void flushFlows();
@@ -69,10 +73,10 @@ public interface SfcOfFlowProgrammerInterface {
     public void configureVlanTransportIngressFlow(final String sffNodeName);
 
     // These 2 are work-around flows until the OVS NSH patch is completed
-    public void configureVxlanGpeSfLoopbackEncapsulatedEgressFlow(final String sffNodeName, final String sfIp, final short vxlanUdpPort, final long sffPort);
-    public void configureVxlanGpeSfReturnLoopbackIngressFlow(final String sffNodeName, final short vxlanUdpPort, final long sffPort);
+    public void configureNshVxgpeSfLoopbackEncapsulatedEgressFlow(final String sffNodeName, final String sfIp, final short vxlanUdpPort, final long sffPort);
+    public void configureNshVxgpeSfReturnLoopbackIngressFlow(final String sffNodeName, final short vxlanUdpPort, final long sffPort);
 
-    public void configureVxlanGpeTransportIngressFlow(final String sffNodeName, final long nshNsp, final short nshNsi);
+    public void configureNshVxgpeTransportIngressFlow(final String sffNodeName, final long nshNsp, final short nshNsi);
 
     public void configureMplsTransportIngressFlow(final String sffNodeName);
 
@@ -84,8 +88,8 @@ public interface SfcOfFlowProgrammerInterface {
     public void configureMplsPathMapperFlow(final String sffNodeName, final long label, long pathId, boolean isSf);
 
     public void configureVlanPathMapperFlow(final String sffNodeName, final int vlan, long pathId, boolean isSf);
-    // PathMapper not needed for VxlanGpe NSH
-    //configureVxlanGpePathMapperFlow()
+    // PathMapper not needed for NshVxgpe NSH
+    //configureNshVxgpePathMapperFlow()
 
     //
     // Table 3, NextHop
@@ -96,7 +100,26 @@ public interface SfcOfFlowProgrammerInterface {
     public void configureGroupNextHopFlow(final String sffNodeName, final long sfpId, final String srcMac,
             final long groupId, final String groupName);
 
-    public void configureVxlanGpeNextHopFlow(final String sffNodeName, final String dstIp, final long nsp,
+    public void configureNshVxgpeNextHopFlow(final String sffNodeName, final String dstIp, final long nsp,
+            final short nsi);
+
+    /**
+     * Configure nsh next hop flow
+     *
+     * @param sffNodeName
+     *            The openflow node name
+     * @param srcMac
+     *            MAC address used by the openflow port to which the SF is
+     *            connected
+     * @param dstMac
+     *            MAC address used by the SF
+     * @param nsp
+     *            the NSH NSP
+     * @param nsi
+     *            the NSH NSI
+     */
+    public void configureNshEthNextHopFlow(final String sffNodeName,
+            final String srcMac, final String dstMac, final long nsp,
             final short nsi);
 
     //
@@ -114,17 +137,20 @@ public interface SfcOfFlowProgrammerInterface {
     public void configureMplsLastHopTransportEgressFlow(final String sffNodeName, final String srcMac, final String dstMac,
             final long mplsLabel, final String port, final long pathId);
 
-    public void configureVxlanGpeTransportEgressFlow(
+    public void configureNshVxgpeTransportEgressFlow(
             final String sffNodeName, final long nshNsp, final short nshNsi, final String port);
 
-    public void configureVxlanGpeAppCoexistTransportEgressFlow(
+    public void configureNshVxgpeAppCoexistTransportEgressFlow(
             final String sffNodeName, final long nshNsp, final short nshNsi, final String sffIp);
 
-    public void configureVxlanGpeLastHopTransportEgressFlow(
+    public void configureNshVxgpeLastHopTransportEgressFlow(
             final String sffNodeName, final long nshNsp, final short nshNsi, final String port);
 
     public void configureNshNscTransportEgressFlow(
             String sffNodeName, final long nshNsp, final short nshNsi, String switchPort);
+
+    public void configureNshEthTransportEgressFlow(
+            String sffNodeName, final long nshNsp, final short nshNsi, final String port);
 
     //
     // Configure the MatchAny entry specifying if it should drop or goto the next table
@@ -150,4 +176,41 @@ public interface SfcOfFlowProgrammerInterface {
     public void configureGroup(final String sffNodeName, final String openflowNodeId, final String sfgName,
             final long sfgId, int groupType, List<GroupBucketInfo> bucketInfos, final boolean isAddGroup);
 
+    /**
+     * Used by logical sff processor in order to write chain egress flows
+     *
+     * @param sffNodeName
+     *            last openflow node in the chain
+     * @param nshNsp
+     *            nsp for the match
+     * @param nshNsi
+     *            nsi for the match
+     * @param macAddress
+     *            the mac address to set as source address at chain egress time
+     *            (if not set, the src mac address after decapsulation would be
+     *            the one set before the chain was executed (at classification
+     *            time), and the packet would be dropped at subsequent pipeline
+     *            processing)
+     */
+    public void configureNshEthLastHopTransportEgressFlow(String sffNodeName,
+            long nshNsp, short nshNsi, MacAddress macAddress);
+
+    /**
+     * Configure transport egress flows, using a list of externally provided actions
+     * @param sffOpenFlowNodeName  The openflow identifier for the node on which the flows are to be written
+     * @param nshNsp         NSP to use in the match part
+     * @param nshNsi         NSI to use in the match part
+     * @param actionList     List of actions to use in the actions part
+     */
+    public void configureNshEthTransportEgressFlow(String sffOpenFlowNodeName,
+            long nshNsp, short nshNsi, List<Action> actionList);
+
+    /**
+     * Setter for the table index mapper (class which provides the tables to use
+     * for Genius-based application coexistence)
+     *
+     * @param tableIndexMapper
+     *            The table index mapper
+     */
+    public void setTableIndexMapper(SfcTableIndexMapper tableIndexMapper);
 }

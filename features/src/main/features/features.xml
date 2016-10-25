@@ -23,6 +23,7 @@
     <repository>mvn:org.opendaylight.openflowplugin/features-openflowplugin/{{VERSION}}/xml/features</repository>
     <repository>mvn:org.opendaylight.openflowplugin/features-openflowplugin-extension/{{VERSION}}/xml/features</repository>
     <repository>mvn:org.opendaylight.lispflowmapping/features-lispflowmapping/{{VERSION}}/xml/features</repository>
+    <repository>mvn:org.opendaylight.genius/genius-features/{{VERSION}}/xml/features</repository>
 
     <feature name="odl-sfc-model" version="${project.version}" description="OpenDaylight :: sfc :: Model">
         <feature version="${mdsal.model.version}">odl-mdsal-models</feature>
@@ -34,7 +35,6 @@
         <feature version="${mdsal.version}">odl-mdsal-broker</feature>
         <feature version="${project.version}">odl-sfc-model</feature>
         <bundle>mvn:org.opendaylight.sfc/sfc-provider/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/80-sfc.xml">mvn:org.opendaylight.sfc/sfc-config/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-provider-rest" version="${project.version}" description="OpenDaylight :: sfc :: Provider ">
@@ -46,21 +46,18 @@
         <feature version="${project.version}">odl-sfc-provider-rest</feature>
         <feature version="${netconf.parent.version}">odl-netconf-connector</feature>
         <bundle>mvn:org.opendaylight.sfc/sfc-netconf/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-netconf-initial.xml">mvn:org.opendaylight.sfc/sfc-netconf/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-ios-xe-renderer" version="${project.version}" description="OpenDaylight :: sfc-renderers :: IOS-XE Renderer ">
         <feature version="${project.version}">odl-sfc-provider-rest</feature>
         <feature version="${netconf.parent.version}">odl-netconf-connector</feature>
         <bundle>mvn:org.opendaylight.sfc/sfc-ios-xe-renderer/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-ios-xe-renderer-initial.xml">mvn:org.opendaylight.sfc/sfc-ios-xe-renderer/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-ovs" version="${project.version}" description="OpenDaylight :: OpenvSwitch ">
         <feature version="${project.version}">odl-sfc-provider-rest</feature>
         <feature version="${ovsdb.southbound.version}">odl-ovsdb-southbound-impl</feature>
         <bundle>mvn:org.opendaylight.sfc/sfc-ovs/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-ovs-initial.xml">mvn:org.opendaylight.sfc/sfc-ovs/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-scf-openflow" version="${project.version}" description="OpenDaylight :: sfc-scf-openflow">
@@ -69,7 +66,6 @@
         <feature version="${openflowplugin.version}">odl-openflowplugin-nxm-extensions</feature>
         <bundle>mvn:org.opendaylight.sfc/sfc-scf-openflow/{{VERSION}}</bundle>
         <bundle>mvn:org.opendaylight.sfc/sfc-openflow-utils/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-scf-openflow-initial.xml">mvn:org.opendaylight.sfc/sfc-scf-openflow/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfcofl2" version="${project.version}" description="OpenDaylight :: sfcofl2 (DEPRECATED)">
@@ -80,9 +76,10 @@
         <feature version="${project.version}">odl-sfc-ovs</feature>
         <feature version="${openflowplugin.version}">odl-openflowplugin-flow-services</feature>
         <feature version="${openflowplugin.version}">odl-openflowplugin-nxm-extensions</feature>
+        <feature version="${genius.version}">odl-genius</feature>
+        <bundle>mvn:org.opendaylight.sfc/sfc-genius/{{VERSION}}</bundle>
         <bundle>mvn:org.opendaylight.sfc/sfc-openflow-renderer/{{VERSION}}</bundle>
         <bundle>mvn:org.opendaylight.sfc/sfc-openflow-utils/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-openflow-renderer-initial.xml">mvn:org.opendaylight.sfc/sfc-openflow-renderer/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-monitor" version="${project.version}" description="OpenDaylight :: sfc-monitor ">
@@ -98,7 +95,6 @@
         <feature version="${netconf.parent.version}">odl-netconf-connector-all</feature>
         <feature version="${netconf.parent.version}">odl-netconf-topology</feature>
         <bundle>mvn:org.opendaylight.sfc/sfc-vpp-renderer/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-vpp-renderer-initial.xml">mvn:org.opendaylight.sfc/sfc-vpp-renderer/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfclisp" version="${project.version}" description="OpenDaylight :: sfclisp :: all">
@@ -106,7 +102,6 @@
         <feature version="${lispflowmapping.version}">odl-lispflowmapping-mappingservice</feature>
         <feature version="${lispflowmapping.version}">odl-lispflowmapping-southbound</feature>
         <bundle>mvn:org.opendaylight.sfc/sfclisp/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-lisp-initial.xml">mvn:org.opendaylight.sfc/sfclisp/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-sb-rest" version="${project.version}" description="OpenDaylight :: sfc-sb-rest ">
@@ -123,14 +118,12 @@
         <bundle>mvn:com.fasterxml.jackson.jaxrs/jackson-jaxrs-json-provider/{{VERSION}}</bundle>
         <bundle>mvn:com.fasterxml.jackson.module/jackson-module-jaxb-annotations/{{VERSION}}</bundle>
         <bundle>mvn:org.glassfish/javax.json/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-sb-rest-initial.xml">mvn:org.opendaylight.sfc/sfc-sb-rest/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-pot" version="${project.version}" description="OpenDaylight :: sfc-pot :: SFC Proof of Transit ">
         <feature version="${project.version}">odl-sfc-provider-rest</feature>
         <feature version="${netconf.parent.version}">odl-netconf-connector</feature>
         <bundle>mvn:org.opendaylight.sfc/sfc-pot/{{VERSION}}</bundle>
-        <configfile finalname="etc/opendaylight/karaf/sfc-pot-initial.xml">mvn:org.opendaylight.sfc/sfc-pot/{{VERSION}}/xml/config</configfile>
     </feature>
 
     <feature name="odl-sfc-ui" version="${project.version}" description="OpenDaylight :: sfc :: UI">

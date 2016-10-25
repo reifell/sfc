@@ -11,26 +11,27 @@
    <parent>
     <groupId>org.opendaylight.odlparent</groupId>
     <artifactId>features-parent</artifactId>
-    <version>1.7.1-SNAPSHOT</version>
-    <relativePath/>
+    <version>1.8.0-SNAPSHOT</version>
+    <relativePath />
   </parent>
 
    <groupId>org.opendaylight.sfc</groupId>
    <artifactId>features-sfc</artifactId>
-   <version>0.3.1-SNAPSHOT</version>
+   <version>0.5.0-SNAPSHOT</version>
    <packaging>jar</packaging>
    <properties>
       <features.file>features.xml</features.file>
-      <dlux.version>0.4.1-SNAPSHOT</dlux.version>
-      <karaf.empty.version>1.7.1-SNAPSHOT</karaf.empty.version>
-      <lispflowmapping.version>1.4.1-SNAPSHOT</lispflowmapping.version>
-      <mdsal.model.version>0.9.1-SNAPSHOT</mdsal.model.version>
-      <mdsal.version>1.4.1-SNAPSHOT</mdsal.version>
-      <netconf.parent.version>1.1.1-SNAPSHOT</netconf.parent.version>
-      <openflowplugin.version>0.3.1-SNAPSHOT</openflowplugin.version>
-      <ovsdb.southbound.version>1.3.1-SNAPSHOT</ovsdb.southbound.version>
-      <restconf.version>1.4.1-SNAPSHOT</restconf.version>
-      <yangtools.version>1.0.1-SNAPSHOT</yangtools.version>
+      <dlux.version>0.5.0-SNAPSHOT</dlux.version>
+      <karaf.empty.version>1.8.0-SNAPSHOT</karaf.empty.version>
+      <lispflowmapping.version>1.5.0-SNAPSHOT</lispflowmapping.version>
+      <mdsal.model.version>0.10.0-SNAPSHOT</mdsal.model.version>
+      <mdsal.version>1.5.0-SNAPSHOT</mdsal.version>
+      <netconf.parent.version>1.2.0-SNAPSHOT</netconf.parent.version>
+      <openflowplugin.version>0.4.0-SNAPSHOT</openflowplugin.version>
+      <ovsdb.southbound.version>1.4.0-SNAPSHOT</ovsdb.southbound.version>
+      <restconf.version>1.5.0-SNAPSHOT</restconf.version>
+      <yangtools.version>1.1.0-SNAPSHOT</yangtools.version>
+      <genius.version>0.2.0-SNAPSHOT</genius.version>
    </properties>
    <dependencies>
     <!--
@@ -106,6 +107,13 @@
         <type>xml</type>
     </dependency>
 
+    <dependency>
+      <groupId>org.opendaylight.genius</groupId>
+      <artifactId>genius-features</artifactId>
+      <version>${genius.version}</version>
+      <classifier>features</classifier>
+      <type>xml</type>
+    </dependency>
 
     <!--
                     BUNDLES SECTION
@@ -203,7 +211,11 @@
         <artifactId>sfc-monitor</artifactId>
         <version>${project.version}</version>
       </dependency>
-
+       <dependency>
+         <groupId>${project.groupId}</groupId>
+         <artifactId>sfc-genius</artifactId>
+        <version>${project.version}</version>
+      </dependency>
     <!--  Used in odl-sfc-bootstrp and odl-sfc-sb-rest -->
     <dependency>
         <groupId>com.sun.jersey</groupId>
@@ -265,87 +277,16 @@
       Put dependencies for configfiles directly referenced in your features.xml file.
       For every <configfile> reference in your features.xml file, you need a corresponding dependency here.
     -->
-    <!-- odl-sfc-provider config files -->
-   <dependency>
-       <groupId>${project.groupId}</groupId>
-       <artifactId>sfc-config</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-    <!-- odl-sfc-netconf config files -->
-    <dependency>
-       <groupId>org.opendaylight.sfc</groupId>
-       <artifactId>sfc-netconf</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-    <!-- odl-ios-xe-renderer config files -->
-    <dependency>
-       <groupId>org.opendaylight.sfc</groupId>
-       <artifactId>sfc-ios-xe-renderer</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-    <!-- odl-sfc-ovs config files -->
+    <!-- odl-sfc-genius config files -->
     <dependency>
        <groupId>${project.groupId}</groupId>
-       <artifactId>sfc-ovs</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-    <!-- odl-sfc-scf-openflow config files -->
-    <dependency>
-       <groupId>${project.groupId}</groupId>
-       <artifactId>sfc-scf-openflow</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-    <!-- odl-sfc-openflow-renderer config files -->
-    <dependency>
-       <groupId>${project.groupId}</groupId>
-       <artifactId>sfc-openflow-renderer</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-    <!-- odl-sfc-vpp-renderer config files -->
-    <dependency>
-       <groupId>${project.groupId}</groupId>
-       <artifactId>sfc-vpp-renderer</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-    <!-- odl-sfclisp config files -->
-    <dependency>
-       <groupId>${project.groupId}</groupId>
-       <artifactId>sfclisp</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-    <!-- odl-sfc-sb-rest config files -->
-    <dependency>
-       <groupId>${project.groupId}</groupId>
-       <artifactId>sfc-sb-rest</artifactId>
+       <artifactId>sfc-genius</artifactId>
        <version>${project.version}</version>
        <type>xml</type>
        <classifier>config</classifier>
     </dependency>
     <!-- odl-sfc-pot config files -->
-    <dependency>
-       <groupId>${project.groupId}</groupId>
-       <artifactId>sfc-pot</artifactId>
-       <version>${project.version}</version>
-       <type>xml</type>
-       <classifier>config</classifier>
-    </dependency>
-       <dependency>
+      <dependency>
         <groupId>${project.groupId}</groupId>
         <artifactId>sfc-jsonconfig</artifactId>
         <version>${project.version}</version>

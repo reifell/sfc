@@ -10,9 +10,9 @@ package org.opendaylight.sfc.ofrenderer.processors;
 
 import java.util.Iterator;
 import java.util.List;
-
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-
+import java.util.Optional;
+import org.opendaylight.sfc.genius.util.appcoexistence.SfcTableIndexMapper;
 import org.opendaylight.sfc.ofrenderer.openflow.SfcOfFlowProgrammerInterface;
 
 import org.opendaylight.sfc.ofrenderer.utils.SfcOfBaseProviderUtils;
@@ -110,12 +110,33 @@ public abstract class SfcRspTransportProcessorBase {
     public abstract void setRspTransports();
 
     /**
+     * A renderer can provide a @{link SfcTableIndexMapper} class in order to
+     * use Genius-based application coexistence (i.e. let Genius decide which
+     * table indexes will be used for SFC tables). For doing so, that renderer
+     * will overwrite this method and provide a {@link SfcTableIndexMapper}
+     *
+     * @return The {@link SfcTableIndexMapper} to use for table indexes mapping,
+     *         or an empty {@link Optional} when the transport processor doesn't
+     *         rely on Genius for application coexistence
+     */
+    public Optional<SfcTableIndexMapper> getTableIndexMapper() {
+        return Optional.empty();
+    }
+
+    /**
      * Iterate the SFF graph for the Rendered Service Path and process the Data
      * Plane Locators (DPLs).  This method will figure out which DPL is the
      * ingress and which is the egress, and try to calculate Hop DPLs.
      */
     public void processSffDpls() {
         // Iterate the entries in the SFF Graph
+
+        // DPLs are not used for the logical SFF (no SFF DPL / dictionary; SF dpl is a logical interface definition)
+        if (sffGraph.isUsingLogicalSFF()) {
+            LOG.debug("processSFFDpls: skipping src dpl setup for logical sff");
+            return;
+        }
+
         Iterator<SffGraph.SffGraphEntry> sffGraphIter = sffGraph.getGraphEntryIterator();
         while (sffGraphIter.hasNext()) {
             SffGraph.SffGraphEntry entry = sffGraphIter.next();
@@ -126,7 +147,7 @@ public abstract class SfcRspTransportProcessorBase {
             ServiceFunctionForwarder srcSff =
                     sfcProviderUtils.getServiceFunctionForwarder(entry.getSrcSff(), entry.getPathId());
             if (srcSff == null) {
-                throw new RuntimeException("processSffDpls srcSff is null [" + entry.getSrcSff() + "]");
+                throw new SfcRenderingException("processSffDpls srcSff is null [" + entry.getSrcSff() + "]");
             }
 
             // may be null if its EGRESS
@@ -135,7 +156,7 @@ public abstract class SfcRspTransportProcessorBase {
             if (dstSff != null) {
                 // Set the SFF-SFF Hop DPL
                 if (!setSffHopDataPlaneLocators(srcSff, dstSff)) {
-                    throw new RuntimeException(
+                    throw new SfcRenderingException(
                             "Unable to get SFF HOP DPLs srcSff [" + entry.getSrcSff() + "] dstSff [" + entry.getDstSff()
                                     + "] transport [" + rsp.getTransportType() + "] pathId [" + entry.getPathId() + "]");
                 }
@@ -147,7 +168,7 @@ public abstract class SfcRspTransportProcessorBase {
                 SffDataPlaneLocator srcSffIngressDpl = sfcProviderUtils.getSffDataPlaneLocator(srcSff,
                         sffGraph.getSffIngressDpl(entry.getSrcSff(), entry.getPathId()));
                 if (!setSffRemainingHopDataPlaneLocator(srcSff, srcSffIngressDpl, true)) {
-                    throw new RuntimeException("Unable to get SFF egress DPL srcSff [" + entry.getSrcSff()
+                    throw new SfcRenderingException("Unable to get SFF egress DPL srcSff [" + entry.getSrcSff()
                             + "] transport [" + rsp.getTransportType() + "] pathId [" + entry.getPathId() + "]");
                 }
             } else {
@@ -155,7 +176,7 @@ public abstract class SfcRspTransportProcessorBase {
                 SffDataPlaneLocator srcSffEgressDpl = sfcProviderUtils.getSffDataPlaneLocator(srcSff,
                         sffGraph.getSffEgressDpl(entry.getSrcSff(), entry.getPathId()));
                 if (!setSffRemainingHopDataPlaneLocator(srcSff, srcSffEgressDpl, false)) {
-                    throw new RuntimeException("Unable to get SFF HOP ingress DPL srcSff [" + entry.getSrcSff()
+                    throw new SfcRenderingException("Unable to get SFF HOP ingress DPL srcSff [" + entry.getSrcSff()
                             + "] transport [" + rsp.getTransportType() + "] pathId [" + entry.getPathId() + "]");
                 }
             }
@@ -186,15 +207,12 @@ public abstract class SfcRspTransportProcessorBase {
             this.sffGraph.setSffEgressDpl(sff.getName(), pathId, sffDplList.get(0).getName());
             return true;
         }
-//        SffDataPlaneLocatorName egreesNameDpl = null;
+        SffDataPlaneLocatorName egreesNameDpl = null;
         for (SffDataPlaneLocator sffDpl : sffDplList) {
             LOG.debug("try to match sffDpl name: {}, type: {}", sffDpl.getName(),
                     sffDpl.getDataPlaneLocator().getTransport().getName());
             if (alreadySetSffDpl != null) {
                 if (sffDpl.getName().equals(alreadySetSffDpl.getName())) {
-
-
-
                     continue;
                 }
             }
@@ -203,20 +221,18 @@ public abstract class SfcRspTransportProcessorBase {
                     // the SFF ingressDpl was already set, so we need to set the egress
                     SffDataPlaneLocatorName egrees = sffDpl.getName();
                     // if there is a dpl on classifier equals to (trsnport and vlanId) a dpl from sff it is the egrees of the chain
-                    if(sffDpl.getDataPlaneLocator().getLocatorType().toString().equals("service-locator:mac")) {
-                        List<SffDataPlaneLocator> sffDpls = SfcProviderServiceForwarderAPI.readServiceFunctionForwarderDataPlaneLocators(sff.getName());
-                        if (sffDpls != null) {
-                            for (SffDataPlaneLocator dpl : sffDpls) {
-                                SffDataPlaneLocatorName egreesDpl = searchDplOnClassifier(dpl, rspTransport);
-                                if (egreesDpl != null) {
-                                    egrees = egreesDpl;
-                                }
+                    List<SffDataPlaneLocator> sffDpls = SfcProviderServiceForwarderAPI.readServiceFunctionForwarderDataPlaneLocators(sff.getName());
+                    if (sffDpls != null) {
+                        for (SffDataPlaneLocator dpl : sffDpls) {
+                            SffDataPlaneLocatorName egreesDpl = searchDplOnClassifier(dpl, rspTransport);
+                            if (egreesDpl != null) {
+                                egrees = egreesDpl;
                             }
                         }
                     }
-//                    if (egreesNameDpl != null) {
-//                        egrees = egreesNameDpl;
-//                    }
+                    if (egreesNameDpl != null) {
+                        egrees = egreesNameDpl;
+                    }
                     this.sffGraph.setSffEgressDpl(sff.getName(), pathId, egrees);
 
 
@@ -392,5 +408,13 @@ public abstract class SfcRspTransportProcessorBase {
         }
 
         return false;
+    }
+
+    /**
+     * Create the appropriate rules in the classifier table (when necessary)
+     * @param sffNodeName  the openflow node identifier
+     */
+    public void configureClassifierTableMatchAny(final String sffNodeName) {
+        this.sfcFlowProgrammer.configureClassifierTableMatchAny(sffNodeName);
     }
 }

@@ -9,6 +9,7 @@
 package org.opendaylight.sfc.ofrenderer.processors;
 
 import java.util.Iterator;
+
 import org.opendaylight.sfc.ofrenderer.processors.SffGraph.SffGraphEntry;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.function.base.SfDataPlaneLocator;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev140701.service.functions.ServiceFunction;
@@ -201,7 +202,7 @@ public class SfcRspProcessorMpls extends SfcRspTransportProcessorBase {
      */
     @Override
     public void configureSfTransportEgressFlow(
-            SffGraph.SffGraphEntry entry, SffDataPlaneLocator srcSffDpl, SfDataPlaneLocator dstSfDpl, DataPlaneLocator hopDpl) {
+            SffGraph.SffGraphEntry entry, SffDataPlaneLocator srcSffDpl, SfDataPlaneLocator dstSfDpl, DataPlaneLocator hopDpl){
         Integer vlanTag = ((MacAddressLocator) hopDpl.getLocatorType()).getVlanId();
         if (vlanTag == null) {
             return;
@@ -209,7 +210,7 @@ public class SfcRspProcessorMpls extends SfcRspTransportProcessorBase {
 
         String srcOfsPortStr = sfcProviderUtils.getDplPortInfoPort(srcSffDpl);
         if (srcOfsPortStr == null) {
-            throw new RuntimeException("configureSffTransportEgressFlow OFS port not avail for SFF ["
+            throw new SfcRenderingException("configureSffTransportEgressFlow OFS port not avail for SFF ["
                     + entry.getDstSff() + "] sffDpl [" + srcSffDpl.getName().getValue() + "]");
         }
 
@@ -243,10 +244,10 @@ public class SfcRspProcessorMpls extends SfcRspTransportProcessorBase {
      */
     @Override
     public void configureSffTransportEgressFlow(
-            SffGraph.SffGraphEntry entry, SffDataPlaneLocator srcSffDpl, SffDataPlaneLocator dstSffDpl, DataPlaneLocator hopDpl) {
+            SffGraph.SffGraphEntry entry, SffDataPlaneLocator srcSffDpl, SffDataPlaneLocator dstSffDpl, DataPlaneLocator hopDpl){
         String srcOfsPortStr = sfcProviderUtils.getDplPortInfoPort(srcSffDpl);
         if (srcOfsPortStr == null) {
-            throw new RuntimeException("configureSffTransportEgressFlow OFS port not avail for SFF ["
+            throw new SfcRenderingException("configureSffTransportEgressFlow OFS port not avail for SFF ["
                     + entry.getDstSff() + "] sffDpl [" + srcSffDpl.getName().getValue() + "]");
         }
 

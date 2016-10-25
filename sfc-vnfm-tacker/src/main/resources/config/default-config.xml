@@ -44,7 +44,7 @@
     </configuration>
 
     <required-capabilities>
-        <capability>urn:opendaylight:params:xml:ns:yang:controller:config:sfc:vnfm:tacker?module=sfc-vnfm-tacker&amp;revision=2015-12-23</capability>
+        <capability>urn:opendaylight:params:xml:ns:yang:controller:config:sfc:vnfm:tacker?module=sfc-vnfm-tacker&amp;revision=cd 2015-12-23</capability>
     </required-capabilities>
 
 </snapshot>

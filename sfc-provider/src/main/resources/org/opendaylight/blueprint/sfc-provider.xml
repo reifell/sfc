@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+  xmlns:odl="http://opendaylight.org/xmlns/blueprint/v1.0.0"
+  odl:use-default-for-reference-types="true">
+
+  <reference id="dataBroker"
+    interface="org.opendaylight.controller.md.sal.binding.api.DataBroker"
+    odl:type="default" />
+  <reference id="bindingRegistry"
+    interface="org.opendaylight.controller.sal.binding.api.BindingAwareBroker" />
+
+  <bean id="opendaylightSfc" class="org.opendaylight.sfc.provider.OpendaylightSfc"
+    destroy-method="close">
+    <property name="dataProvider" ref="dataBroker" />
+    <property name="broker" ref="bindingRegistry" />
+  </bean>
+
+  <bean id="sfcProviderRpc" class="org.opendaylight.sfc.provider.SfcProviderRpc">
+  </bean>
+  <odl:rpc-implementation ref="sfcProviderRpc" />
+
+  <bean id="sfcProviderScfEntryDataListener"
+    class="org.opendaylight.sfc.provider.listeners.SfcProviderScfEntryDataListener"
+    destroy-method="close">
+    <argument ref="dataBroker" />
+  </bean>
+
+  <bean id="sfcProviderSfstEntryDataListener"
+    class="org.opendaylight.sfc.provider.listeners.SfcProviderSfstEntryDataListener"
+    destroy-method="close">
+    <argument ref="dataBroker" />
+  </bean>
+
+  <bean id="serviceFunctionListener"
+    class="org.opendaylight.sfc.provider.listeners.ServiceFunctionListener"
+    init-method="init" destroy-method="close">
+    <argument ref="dataBroker" />
+  </bean>
+
+    <bean id="serviceFunctionForwarderListener"
+    class="org.opendaylight.sfc.provider.listeners.ServiceFunctionForwarderListener"
+    init-method="init" destroy-method="close">
+    <argument ref="dataBroker" />
+  </bean>
+</blueprint>

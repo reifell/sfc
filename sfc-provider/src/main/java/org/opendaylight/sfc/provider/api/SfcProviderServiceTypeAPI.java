@@ -35,7 +35,7 @@ import static org.opendaylight.sfc.provider.SfcProviderDebug.printTraceStop;
  * @author Reinaldo Penno (rapenno@gmail.com)
  * @author Konstantin Blagov (blagov.sk@hotmail.com)
  * @version 0.1
- * @see org.opendaylight.sfc.provider.SfcProviderSfEntryDataListener
+ * @see org.opendaylight.sfc.provider.listeners.ServiceFunctionListener
  * @since 2014-06-30
  */
 public class SfcProviderServiceTypeAPI {
@@ -168,6 +168,8 @@ public class SfcProviderServiceTypeAPI {
 
     /**
      * Delete a ServiceFunctionType based on SftType (key)
+     * @param sftType: Sft type
+     * @return Status of delete stf operation
      */
 
     public static boolean deleteServiceFunctionType(SftTypeName sftType) {
@@ -231,6 +233,6 @@ public class SfcProviderServiceTypeAPI {
             .build();
 
         printTraceStop(LOG);
-        return (SfcDataStoreAPI.readTransactionAPI(sftentryIID, LogicalDatastoreType.CONFIGURATION));
+        return SfcDataStoreAPI.readTransactionAPI(sftentryIID, LogicalDatastoreType.CONFIGURATION);
     }
 }
