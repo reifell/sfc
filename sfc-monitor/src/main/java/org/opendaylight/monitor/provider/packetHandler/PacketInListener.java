@@ -310,14 +310,16 @@ public class PacketInListener implements PacketProcessingListener {
         }
     }
 
-    public void getTrace() {
+    public String getTrace() {
         updateStoredChains(System.currentTimeMillis());
         LOG.info("print trace information");
 
         traceWriter.append("Start: [ ");
         int sizeout = storedTraces.entrySet().size();
+        StringBuilder output = new StringBuilder();
         for (ConcurrentHashMap.Entry<String, Set<TraceElement>> entry : storedTraces.entrySet()) {
             LOG.info(":::::::::::::::: Traceout {} ::::::::::::::    ", entry.getKey());
+            output.append(String.format(" |   Traceout %s ->", entry.getKey()));
             traceWriter.append("[ ");
             int size = entry.getValue().size();
             int i = 0;
@@ -337,6 +339,8 @@ public class PacketInListener implements PacketProcessingListener {
                 if( i == 1) {
                     String traceFormat = String.format("{[%d] %s} - <%d>", trace.getPktCount(), trace.getTraceHop(), trace.getLastTime());
                     LOG.info(traceFormat);
+                    output.append(String.format("[%d] %s ", trace.getPktCount(), trace.getTraceHop()));
+
                     String plotElement = String.format("[%s, %s]\n", entry.getKey(), trace.getTraceHop());
                     plotWriter.append(plotElement);
                     continue;
@@ -348,9 +352,12 @@ public class PacketInListener implements PacketProcessingListener {
 //                            LOG.info(" delays [{}]", hopDStr);
                 String avfHopDelay = String.format("avg hop delay (%.2f)", trace.getHopDelayAverage());
                 LOG.info(avfHopDelay);
+                //output.append(String.format("(%.2f), ", trace.getHopDelayAverage()));
+
 
                 String traceFormat = String.format("{[%d] %s} - <%d>", trace.getPktCount(), trace.getTraceHop(), trace.getLastTime());
                 LOG.info(traceFormat);
+                output.append(String.format("[%d] %s - ", trace.getPktCount(), trace.getTraceHop()));
 
                 String plotter = trace.getPlot();
                 if (plotter != null) {
@@ -364,8 +371,7 @@ public class PacketInListener implements PacketProcessingListener {
         }
         traceWriter.append("] ");
         LOG.info("mapSize {} ", traceMap.size());
-
-
+        return output.toString();
     }
 
     private void updateStoredChains(long inTime) {

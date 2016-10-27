@@ -8,9 +8,10 @@
 
 package org.opendaylight.monitor.provider.provider;
 
-import com.google.common.util.concurrent.Futures;
 import org.opendaylight.monitor.provider.packetHandler.PacketInListener;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.controller.config.sfc.monitor.impl.rev160506.SfcMonitorImplService;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.controller.config.sfc.monitor.impl.rev160506.TraceSfcOutput;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.controller.config.sfc.monitor.impl.rev160506.TraceSfcOutputBuilder;
 import org.opendaylight.yangtools.yang.common.RpcError;
 import org.opendaylight.yangtools.yang.common.RpcResult;
 import org.opendaylight.yangtools.yang.common.RpcResultBuilder;
@@ -26,26 +27,58 @@ public class TraceRpc implements SfcMonitorImplService {
     private PacketInListener packetInListener = null;
 
     private static final Logger LOG = LoggerFactory.getLogger(TraceRpc.class);
+
     @Override
-    public Future<RpcResult<Void>> traceSfc() {
+    public Future<RpcResult<TraceSfcOutput>> traceSfc() {
         LOG.info("Get Trace Information");
         if (packetInListener == null) {
             packetInListener = PacketInListener.getPacketInListenerObj();
         }
-        packetInListener.getTrace();
-        return Futures.immediateFuture(
-                RpcResultBuilder.<Void>failed().withError(RpcError.ErrorType.APPLICATION, "No data provider.").build());
+        try {
+
+            String out = packetInListener.getTrace();
+
+            return RpcResultBuilder
+                    .success(new TraceSfcOutputBuilder().setResult(out).build())
+                    .buildFuture();
+        } catch (Exception e) {
+            return RpcResultBuilder
+                    .<TraceSfcOutput>failed()
+                    .withError(RpcError.ErrorType.APPLICATION, e.getMessage(), e)
+                    .buildFuture();
+        }
+
+        //return Futures.immediateFuture(
+        //        RpcResultBuilder.<Void>failed().withError(RpcError.ErrorType.APPLICATION, "No data provider.").build());
     }
     public void putPacketInListerObject (PacketInListener listner) {
         packetInListener = listner;
+    }
+
+
+    private void trigger() {
+        LOG.info("cleanTraceSfc");
     }
 
     @Override
     public Future<RpcResult<Void>> cleanTraceSfc() {
         LOG.info("Clear Trace Information");
         packetInListener.cleanTraceMaps();
-        return Futures.immediateFuture(
-                RpcResultBuilder.<Void>failed().withError(RpcError.ErrorType.APPLICATION, "No data provider.").build());
+
+        try {
+            trigger();
+            return RpcResultBuilder
+                    .<Void>success()
+                    .buildFuture();
+        } catch (Exception e) {
+            return RpcResultBuilder
+                    .<Void>failed()
+                    .withError(RpcError.ErrorType.APPLICATION, e.getMessage(), e)
+                    .buildFuture();
+        }
+
+        //return Futures.immediateFuture(
+        //        RpcResultBuilder.<Void>failed().withError(RpcError.ErrorType.APPLICATION, "No data provider.").build());
     }
 
 }

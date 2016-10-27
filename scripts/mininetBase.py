@@ -274,11 +274,11 @@ class sfc():
                         ++i
                         time.sleep(2)
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,udp,tp_dst=5010,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,udp,tp_dst=5020,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+         ####           call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,udp,tp_dst=5020,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
 
 
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,tcp,tp_dst=5050,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,tcp,tp_dst=5040,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
+         ####           call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,tcp,tp_dst=5040,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
                     #call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,udp,tp_dst=5011,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3'%(scf, str(vlanId+100)), shell=True) # enter chain upstream
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' %(scf, str(vlanId+numberOfSFFs)), shell=True) # forward to gateway
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' %(scf, str(vlanId+100+numberOfSFFs)), shell=True) # forward to gateway
@@ -290,13 +290,24 @@ class sfc():
                     #bidirectional rules
                     #call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,udp,nw_dst=10.0.0.1,actions=mod_vlan_vid:%s,output:4' % (scf, str(vlanId+100)), shell=True)  # enter chain downstream
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,tcp,tp_src=5050,nw_dst=10.0.0.1,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:4' % (scf, str(vlanId + 100)), shell=True)  # enter chain downstream
-                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,tcp,tp_src=5040,nw_dst=10.0.0.1,actions=mod_vlan_vid:%s,output:4' % (scf, str(vlanId + 100)), shell=True)  # enter chain downstream
+         ####           call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,tcp,tp_src=5040,nw_dst=10.0.0.1,actions=mod_vlan_vid:%s,output:4' % (scf, str(vlanId + 100)), shell=True)  # enter chain downstream
 
                     call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' % (scf, str(vlanId+100+numberOfSFFs)), shell=True)  # forward to gateway
        #             call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,udp,nw_dst=10.0.0.2,udp_dst=5522,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
             #        call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,icmp,nw_src=10.0.0.1,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
        #             call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,udp,nw_dst=10.0.0.2,udp_dst=5533,actions=mod_nw_ecn=3,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
                     #call('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF22FF,table=0,priority=1004,in_port=2,dl_dst=00:00:00:00:00:01,actions=output:1' %(scf), shell=True)
+
+                    # chain 2
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,udp,tp_dst=5020,nw_dst=10.0.0.2,actions=mod_vlan_vid:%s,output:3' % (scf, str(vlanId + 200)), shell=True)  # enter chain upstream (chain2)
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,tcp,tp_dst=5040,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3' % (scf, str(vlanId + 200)), shell=True)  # enter chain upstream (chain2)
+
+                    # back
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1000,ip,tcp,tp_src=5040,nw_dst=10.0.0.1,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:4' % (scf, str(vlanId + 100 + 200)), shell=True)  # enter chain downstream (chain2)
+
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' % (scf, str(vlanId + 200 + numberOfSFFs)), shell=True)  # forward to gateway
+                    call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,ip,dl_vlan=%s,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:FE,output:5' % (scf, str(vlanId + 200 + 100 + numberOfSFFs)), shell=True)  # forward to gateway
+
 
     def disableOffLoadFromIfaces(self):
         p = subprocess.Popen(['tcpdump', '-D'], stdout=subprocess.PIPE,  stderr = subprocess.PIPE)

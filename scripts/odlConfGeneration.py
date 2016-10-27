@@ -43,7 +43,7 @@ class odlConf(ConfigBase):
             i = 0
             for port, mac in zip(ports, macs):
                 sfDpl = {}
-                sfDpl['name'] = name+"-plane-"+str(port)
+                sfDpl['name'] = name+"-plane-"+ str(i)
                 sfDpl['service-function-forwarder'] = sff
                 sfDpl['vlan-id'] = vlan
                 if(i == 0):

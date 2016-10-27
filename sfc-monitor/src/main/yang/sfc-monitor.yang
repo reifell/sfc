@@ -67,14 +67,13 @@ module sfc-monitor-impl {
       description
         "Get SFC path trace information";
 
-//      output {
-//        leaf result {
-//          type boolean;
-//          description
-//            "Whether NSH traceroute for the requested path was
-//             successful";
-//        }
-//      }
+      output {
+        leaf result {
+          type string;
+          description
+            "trace";
+        }
+      }
     }
     rpc clean-trace-sfc {
         description
