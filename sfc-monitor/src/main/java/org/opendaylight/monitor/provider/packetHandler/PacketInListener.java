@@ -319,7 +319,7 @@ public class PacketInListener implements PacketProcessingListener {
         StringBuilder output = new StringBuilder();
         for (ConcurrentHashMap.Entry<String, Set<TraceElement>> entry : storedTraces.entrySet()) {
             LOG.info(":::::::::::::::: Traceout {} ::::::::::::::    ", entry.getKey());
-            output.append(String.format(" |   Traceout %s ->", entry.getKey()));
+            output.append(String.format(" |   Traceout %s \n", entry.getKey()));
             traceWriter.append("[ ");
             int size = entry.getValue().size();
             int i = 0;
@@ -339,7 +339,7 @@ public class PacketInListener implements PacketProcessingListener {
                 if( i == 1) {
                     String traceFormat = String.format("{[%d] %s} - <%d>", trace.getPktCount(), trace.getTraceHop(), trace.getLastTime());
                     LOG.info(traceFormat);
-                    output.append(String.format("[%d] %s ", trace.getPktCount(), trace.getTraceHop()));
+                    output.append(String.format("[%d] %s \n", trace.getPktCount(), trace.getTraceHop()));
 
                     String plotElement = String.format("[%s, %s]\n", entry.getKey(), trace.getTraceHop());
                     plotWriter.append(plotElement);
@@ -357,7 +357,7 @@ public class PacketInListener implements PacketProcessingListener {
 
                 String traceFormat = String.format("{[%d] %s} - <%d>", trace.getPktCount(), trace.getTraceHop(), trace.getLastTime());
                 LOG.info(traceFormat);
-                output.append(String.format("[%d] %s - ", trace.getPktCount(), trace.getTraceHop()));
+                output.append(String.format("[%d] %s \n", trace.getPktCount(), trace.getTraceHop()));
 
                 String plotter = trace.getPlot();
                 if (plotter != null) {
