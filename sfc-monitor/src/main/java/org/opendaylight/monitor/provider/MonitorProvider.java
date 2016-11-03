@@ -6,15 +6,14 @@
  * and is available at http://www.eclipse.org/legal/epl-v10.html
  */
 
-package org.opendaylight.monitor.provider.provider;
+package org.opendaylight.monitor.provider;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.opendaylight.controller.sal.binding.api.BindingAwareBroker;
 import org.opendaylight.controller.sal.binding.api.NotificationProviderService;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
-import org.opendaylight.controller.sal.binding.api.RpcProviderRegistry;
-import org.opendaylight.monitor.provider.packetHandler.PacketInListener;
-import org.opendaylight.monitor.provider.packetHandler.PacketOutSender;
+import org.opendaylight.monitor.packetHandler.PacketInListener;
+import org.opendaylight.monitor.packetHandler.PacketOutSender;
 import org.opendaylight.yangtools.concepts.Registration;
 
 import java.util.concurrent.ExecutionException;
@@ -56,16 +55,28 @@ public class MonitorProvider implements AutoCloseable {
     private static final ExecutorService executor =
             Executors.newFixedThreadPool(EXECUTOR_THREAD_POOL_SIZE, THREAD_FACTORY);
 
+    public MonitorProvider(DataBroker dataBroker,
+                  BindingAwareBroker bindingAwareBroker,
+                  NotificationProviderService notificationService) {
+        this.dataProvider = dataBroker;
+        this.broker = bindingAwareBroker;
+        this.notificationService = notificationService;
+
+        LOG.info("MonitorProvider Initialized");
+        init();
+    }
+
     public static MonitorProvider getMonitorProviderObj() {
         return MonitorProvider.monitorProviderObj;
     }
 
-    public MonitorProvider() {
-        if (monitorProviderObj == null) {
-            monitorProviderObj = this;
-            LOG.info("MonitorProviderObj Initialized");
-        }
-    }
+//    public MonitorProvider() {
+//        if (monitorProviderObj == null) {
+//            monitorProviderObj = this;
+//            LOG.info("MonitorProviderObj Initialized");
+//            init();
+//        }
+//    }
 
     public ExecutorService getExecutor() {
         return executor;
@@ -93,14 +104,13 @@ public class MonitorProvider implements AutoCloseable {
 
 
 
-    public MonitorProvider(DataBroker dataBroker, NotificationProviderService notificationService, RpcProviderRegistry rpcProvider) {
+    private void init() {//DataBroker dataBroker, NotificationProviderService notificationService, RpcProviderRegistry rpcProvider) {
         LOG.info("MonitorProvider starting the MonitorProvider plugin...");
 
-        this.notificationService = notificationService;
-        this.flowListner = new FlowListner(dataBroker);
-        this.ForwarderFlowListner = new ForwarderFlowListner(dataBroker);
-        this.packetOutSender = new PacketOutSender(rpcProvider);
-        this.packetInListener =  new PacketInListener(notificationService, packetOutSender, rpcProvider);
+        this.flowListner = new FlowListner(dataProvider);
+        this.ForwarderFlowListner = new ForwarderFlowListner(dataProvider);
+        //this.packetOutSender = new PacketOutSender(rpcProvider);  // NOT USED
+        this.packetInListener =  new PacketInListener(notificationService, packetOutSender);
 
         //this.packetOutSender.init();
 

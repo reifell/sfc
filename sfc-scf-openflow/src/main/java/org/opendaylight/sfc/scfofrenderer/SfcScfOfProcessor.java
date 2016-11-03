@@ -52,13 +52,13 @@ public class SfcScfOfProcessor {
             return false;
         }
 
-        LOG.debug("create ServiceFunctionClassifier name: {} ACL: {} SFF: {}\n", scf.getName(), scf.getAcl(),
-                scf.getSclServiceFunctionForwarder());
-
         if (scf.getAcl() == null) {
             LOG.error("acl is null\n");
             return false;
         }
+
+        LOG.debug("create ServiceFunctionClassifier name: {} ACL: {} SFF: {}\n", scf.getName(), scf.getAcl(),
+                scf.getSclServiceFunctionForwarder());
 
         Acl acl = SfcProviderAclAPI.readAccessList(scf.getAcl().getName(), scf.getAcl().getType());
         if (acl == null) {

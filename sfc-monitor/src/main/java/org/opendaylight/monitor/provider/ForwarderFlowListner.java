@@ -7,12 +7,12 @@
  */
 
 
-package org.opendaylight.monitor.provider.provider;
+package org.opendaylight.monitor.provider;
 
 import com.google.common.base.Preconditions;
 import org.opendaylight.controller.md.sal.binding.api.*;
 import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.monitor.provider.packetHandler.PacketInListener;
+import org.opendaylight.monitor.packetHandler.PacketInListener;
 import org.opendaylight.sfc.util.openflow.SfcOpenflowUtils;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Uri;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.action.types.rev131112.action.action.OutputActionCase;
@@ -225,20 +225,17 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         MatchBuilder newMatch = new MatchBuilder(match);
         SfcOpenflowUtils.addMatchEcn(newMatch, PacketInListener.PROBE_PACKET_FULL_TRACE_ID);
 
-        int i = 0;
         int j = 0;
         List<Action> newActionList = new ArrayList<>();
         for (Instruction instruct : instructionList) {
             if (instruct.getInstruction() instanceof ApplyActionsCase) {
                 ApplyActionsCase actionscase = (ApplyActionsCase) instruct.getInstruction();
                 ApplyActions actions = actionscase.getApplyActions();
-                newActionList.add(SfcOpenflowUtils.createActionDecTTL(i));
-                i++;
+                newActionList.add(SfcOpenflowUtils.createActionDecTTL(0));
                 for (Action action : actions.getAction()) {
-                    ActionBuilder ab = createActionBuilder(i);
+                    ActionBuilder ab = createActionBuilder(action.getOrder() + 1);
                     ab.setAction(action.getAction());
                     newActionList.add(ab.build());
-                    i++;
                 }
                 break;
             }

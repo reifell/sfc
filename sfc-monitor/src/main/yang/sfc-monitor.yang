@@ -6,8 +6,8 @@ module sfc-monitor-impl {
   prefix "sfc-monitor-impl";
 
   import config { prefix config; revision-date 2013-04-05; }
-  import rpc-context { prefix rpcx; revision-date 2013-06-17; }
-  import opendaylight-md-sal-binding { prefix mdsal; revision-date 2013-10-28; }
+  //import rpc-context { prefix rpcx; revision-date 2013-06-17; }
+  //import opendaylight-md-sal-binding { prefix mdsal; revision-date 2013-10-28; }
 
 
   description
@@ -28,53 +28,18 @@ module sfc-monitor-impl {
   }
 
 
-  // Augments the 'configuration' choice node under modules/module.
-  augment "/config:modules/config:module/config:configuration" {
-    case sfc-monitor-impl {
-      when "/config:modules/config:module/config:type = 'sfc-monitor-impl'";
 
-      //wires in the data-broker service
-      container data-broker {
-        uses config:service-ref {
-          refine type {
-              mandatory false;
-              config:required-identity mdsal:binding-async-data-broker;
-          }
-        }
-      }
-
-      container notification-service {
-        uses config:service-ref {
-          refine type {
-            mandatory true;
-            config:required-identity mdsal:binding-notification-service;
-          }
-        }
-      }
-
-      container rpc-registry {
-        uses config:service-ref {
-          refine type {
-             mandatory true;
-             config:required-identity mdsal:binding-rpc-registry;
-          }
-        }
-      }
-    }
-  }
 
   rpc trace-sfc {
       description
         "Get SFC path trace information";
-
-//      output {
-//        leaf result {
-//          type boolean;
-//          description
-//            "Whether NSH traceroute for the requested path was
-//             successful";
-//        }
-//      }
+      output {
+        leaf result {
+         type string;
+         description
+         "trace";
+         }
+      }
     }
     rpc clean-trace-sfc {
         description

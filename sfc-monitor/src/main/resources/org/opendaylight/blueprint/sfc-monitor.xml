@@ -9,12 +9,21 @@
     <reference id="bindingRegistry"
                interface="org.opendaylight.controller.sal.binding.api.BindingAwareBroker" />
 
+    <reference id="notificationService"
+               interface="org.opendaylight.controller.sal.binding.api.NotificationProviderService" />
+
+
 
     <bean id="sfcmonitor"
-          class="org.opendaylight.monitor.provider.provider.MonitorProvider"
+          class="org.opendaylight.monitor.provider.MonitorProvider"
           destroy-method="close">
         <argument ref="dataBroker"/>
         <argument ref="bindingRegistry"/>
+        <argument ref="notificationService" />
     </bean>
+
+    <bean id="TraceRpc" class="org.opendaylight.monitor.provider.TraceRpc" />
+
+    <odl:rpc-implementation ref="TraceRpc"/>
 
 </blueprint>

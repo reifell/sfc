@@ -110,10 +110,15 @@ public abstract class SfcOfBaseProviderUtils {
         List<SfDataPlaneLocator> sfDataPlanelocatorList = sf.getSfDataPlaneLocator();
         for (SfDataPlaneLocator sfDpl : sfDataPlanelocatorList) {
             if (sfDpl.getServiceFunctionForwarder().equals(sffName)) {
-                sfDplLast = sfDpl;
+                if (sfDpl.getName().getValue().endsWith("1")) {
+                    sfDplLast = sfDpl;
+                    break;
+                }
             }
         }
-
+        if (sfDplLast == null) {
+            sfDplLast = getSfDataPlaneLocator(sf, sffName);
+        }
         return sfDplLast;
     }
     /**
