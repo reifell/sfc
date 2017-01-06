@@ -94,14 +94,21 @@ public abstract class SfcOfBaseProviderUtils {
      * @return SfDataPlaneLocator or null if not found
      */
     public SfDataPlaneLocator getSfDataPlaneLocator(ServiceFunction sf, final SffName sffName) {
+        SfDataPlaneLocator sfDplLast = null;
         List<SfDataPlaneLocator> sfDataPlanelocatorList = sf.getSfDataPlaneLocator();
         for (SfDataPlaneLocator sfDpl : sfDataPlanelocatorList) {
             if (sfDpl.getServiceFunctionForwarder().equals(sffName)) {
-                return sfDpl;
+                if (sfDataPlanelocatorList.size() > 1) {
+                    if (sfDpl.getName().getValue().endsWith("0")) {
+                        sfDplLast = sfDpl;
+                        break;
+                    }
+                } else {
+                    return sfDpl;
+                }
             }
         }
-
-        return null;
+        return sfDplLast;
     }
 
     // method to get the last dpl from an SF, in case it has more than one arm

@@ -14,11 +14,11 @@ initial_time = int(time.time())
 curr_time = 0
 cpuLimited = False
 
-while curr_time  < initial_time + 400:
+while curr_time  < initial_time + 4000:
     print "install rule ..."  #%s hard_timeout=1,
-    call('sudo ovs-ofctl -OOpenFlow13 add-flow %s hard_timeout=1,priority=1002,ip,tcp,tp_dst=5040,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3' % (
+    call('sudo ovs-ofctl -OOpenFlow13 add-flow %s hard_timeout=1,priority=1002,ip,tcp,tp_dst=5050,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3' % (
     scf, str(vlanId)), shell=True)  # enter chain upstream
-    call('sudo ovs-ofctl -OOpenFlow13 add-flow %s hard_timeout=1,priority=1002,ip,tcp,tp_src=5040,nw_dst=10.0.0.1,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:4' % (
+    call('sudo ovs-ofctl -OOpenFlow13 add-flow %s hard_timeout=1,priority=1002,ip,tcp,tp_src=5050,nw_dst=10.0.0.1,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:4' % (
        scf, str(int(vlanId) + 100)), shell=True)  # enter chain downstream
 
     if pid1 is not None:

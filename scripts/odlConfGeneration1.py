@@ -45,65 +45,52 @@ class odlConf(ConfigBase):
 
     def sfConf(self, name, id, type, ip, sff, vlan, macs, ports, confSff):
 
-        sf = {}
-        sf['name'] = name
-        sf['type'] = "service-function-type:" + type
-        sf['nsh-aware'] = "false"
-        sf['ip-mgmt-address'] = ip[0]
-        sf['sf-data-plane-locator'] = []
+            sf = {}
+            sf['name'] = name
+            sf['type'] = "service-function-type:"+type
+            sf['nsh-aware'] = "false"
+            sf['ip-mgmt-address'] = ip[0]
+            sf['sf-data-plane-locator'] = []
 
-        i = 0
-        for port, mac in zip(ports, macs):
-            sfDpl = {}
-            sfDpl['name'] = name + "-plane-" + str(i)
-            sfDpl['service-function-forwarder'] = sff
-            sfDpl['vlan-id'] = vlan
-            if (i == 0):
-                sfDpl['mac'] = mac
-            else:  # if it is two arm (snort case) seting the scond arm mac equals to the src mac addres from the input
-                sfDpl['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
+            i = 0
+            for port, mac in zip(ports, macs):
+                sfDpl = {}
+                sfDpl['name'] = name + "-plane-" + str(i)
+                sfDpl['service-function-forwarder'] = sff
+                sfDpl['vlan-id'] = vlan
+                if(i == 0):
+                    sfDpl['mac'] = mac
+                else: #if it is two arm (snort case) seting the scond arm mac equals to the src mac addres from the input
+                    sfDpl['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
 
-            i += 1
-            sfDpl['transport'] = "service-locator:mac"
-            sf['sf-data-plane-locator'].append(sfDpl)
+                i += 1
+                sfDpl['transport'] = "service-locator:mac"
+                sf['sf-data-plane-locator'].append(sfDpl)
 
-            # sff connected conf
-            sffSfDpl = {}
-            sffSfDpl['name'] = sff + "-dpl-" + name + str(port)
-            sffSfDpl['data-plane-locator'] = {}
-            sffSfDpl['data-plane-locator']['vlan-id'] = (500 + int(id))
-            sffSfDpl['data-plane-locator']['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
-            sffSfDpl['data-plane-locator']['transport'] = "service-locator:mac"
-            sffSfDpl['service-function-forwarder-ofs:ofs-port'] = {}
-            sffSfDpl['service-function-forwarder-ofs:ofs-port']['port-id'] = port
+                #sff connected conf
+                sffSfDpl = {}
+                sffSfDpl['name'] = sff + "-dpl-" + name + str(port)
+                sffSfDpl['data-plane-locator'] = {}
+                sffSfDpl['data-plane-locator']['vlan-id'] = (500 + int(id))
+                sffSfDpl['data-plane-locator']['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
+                sffSfDpl['data-plane-locator']['transport'] = "service-locator:mac"
+                sffSfDpl['service-function-forwarder-ofs:ofs-port'] = {}
+                sffSfDpl['service-function-forwarder-ofs:ofs-port']['port-id'] = port
 
-            confSff['service-function-forwarder'][0]['sff-data-plane-locator'].append(sffSfDpl)
+                confSff['service-function-forwarder'][0]['sff-data-plane-locator'].append(sffSfDpl)
 
-            sfdict = {}
+                sfdict = {}
 
-            sfdict['name'] = sf['name']  # must be the same name as SF name
-            sfdict['sff-sf-data-plane-locator'] = {}
-            sfdict['sff-sf-data-plane-locator']['sf-dpl-name'] = sfDpl['name']
-            sfdict['sff-sf-data-plane-locator']['sff-dpl-name'] = sffSfDpl['name']
+                sfdict['name'] = sf['name']  #must be the same name as SF name
+                sfdict['sff-sf-data-plane-locator'] = {}
+                sfdict['sff-sf-data-plane-locator']['sf-dpl-name'] = sfDpl['name']
+                sfdict['sff-sf-data-plane-locator']['sff-dpl-name'] = sffSfDpl['name']
 
-            confSff['service-function-forwarder'][0]['service-function-dictionary'].append(sfdict)
-        sfs = {}
-        sfs['service-function'] = []
-        sfs['service-function'].append(sf)
-
-        return sfs
-
-    def sfType(self, type):
-        sfType = {}
-        sfType['type'] = type
-        sfType['L2-transparent'] = True
-
-        sfTypes = {}
-        sfTypes['service-function-types'] = []
-        sfTypes['service-function-types'].append(sfType)
-
-        return sfTypes
-
+                confSff['service-function-forwarder'][0]['service-function-dictionary'].append(sfdict)
+            sfs = {}
+            sfs['service-function'] = []
+            sfs['service-function'].append(sf)
+            return sfs
 
 
     def sffConfBase(self, swName, id):

@@ -738,6 +738,22 @@ public class SfcOpenflowUtils {
         return ab.build();
     }
 
+    public static Action createActionAddProbePacket(final int order) {
+
+        IpMatchBuilder ipMatch = new IpMatchBuilder();
+        ipMatch.setIpEcn((short)2);
+
+        SetFieldCaseBuilder setFieldCase = new SetFieldCaseBuilder();
+        setFieldCase.setSetField(
+                new SetFieldBuilder().setIpMatch(ipMatch.build())
+                        .build());
+
+        ActionBuilder ab = createActionBuilder(order);
+        ab.setAction(setFieldCase.build());
+
+        return ab.build();
+    }
+
     public static Action createActionSetDlDst(String dstMac, int order) {
         EthernetDestinationBuilder ethDst = new EthernetDestinationBuilder();
         ethDst.setAddress(new MacAddress(dstMac));

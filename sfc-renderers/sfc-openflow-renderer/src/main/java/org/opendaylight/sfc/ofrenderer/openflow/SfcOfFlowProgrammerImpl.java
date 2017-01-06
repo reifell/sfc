@@ -772,6 +772,9 @@ public class SfcOfFlowProgrammerImpl implements SfcOfFlowProgrammerInterface {
         if (dstMac != null) {
             // Set the DL (Data Link) Dest Mac Address
             actionList.add(SfcOpenflowUtils.createActionSetDlDst(dstMac, 0));
+        } else {
+            actionList.add(SfcOpenflowUtils.createActionSetDlDst("00:00:00:00:00:00", 0));
+
         }
 
         FlowBuilder nextHopFlow = configureNextHopFlow(match, actionList, flowPriority);

@@ -12,6 +12,7 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev14070
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * Created by rafael on 7/18/16.
@@ -93,25 +94,41 @@ public class TraceElement  {
         timeAndHops.add(new TimeAndHop(timestamp, delay));
     }
 
-    public String getPlot() {
+    public String getPlot(ConcurrentSkipListSet<Long> pktInCounter) {
+        if (plotDelay == null) {
+            return null;
+        }
+
         StringBuilder plot = new StringBuilder();
         float sum = 0;
-        int i = 0;
-        Long initialTime = new Long(0);
+        int ppCount = 0;
+        Long initialTime;
+        Long range;
         if (!plotDelay.isEmpty()) {
             initialTime = plotDelay.firstKey();
+            range = plotDelay.lastEntry().getKey() - plotDelay.firstEntry().getKey();
+        } else {
+            return null;
         }
-        int nStepInTheGraph = plotDelay.size()/500;
-        if (nStepInTheGraph < 1) nStepInTheGraph = 1;
+
+        long graphStep = range/(long)100;
+        Long firstCycleTime = (long)0;
         for (Map.Entry<Long, Integer> element : plotDelay.entrySet()) {
+            if (ppCount == 0) firstCycleTime = element.getKey();
+            ppCount++;
             sum += element.getValue();
-            if (i == nStepInTheGraph) {
-                float avg = sum / (float)nStepInTheGraph;
-                plot.append(String.format("%.2f; %.2f\n", (float)(element.getKey() - initialTime)/(float)1000, avg));
+            if (element.getKey() >= firstCycleTime + graphStep) {
+                float rangeTimeInSec = (float)(element.getKey() - firstCycleTime)/(float)1000;
+                float pktPerSecond = ppCount / rangeTimeInSec;
+                float avg = sum / (float)ppCount;
+//                plot.append(String.format(" debug %d; %d; %.2f\n", ppCount, pktInCounter.subSet(firstCycleTime, element.getKey()).size(), rangeTimeInSec));
+
+                float totalPacketIn = pktInCounter.subSet(firstCycleTime, element.getKey()).size()/rangeTimeInSec;
+                //format:  timestamp  -  averge delay   -   pkts per senconds   -  total pktin per second
+                plot.append(String.format("%.2f; %.2f; %.2f; %.2f\n", (float)(element.getKey() - initialTime)/(float)1000, avg, pktPerSecond, totalPacketIn));
                 sum = 0;
-                i = 0;
+                ppCount = 0;
             }
-            i++;
         }
         if (!plotDelay.isEmpty()) {
             lastPlot = plotDelay.lastKey();
@@ -137,6 +154,7 @@ public class TraceElement  {
         if (timeAndHops.size() == 0) return sum;
         return sum / (float)timeAndHops.size();
     }
+
     public long getPktCount() {
         return timeAndHops.size();
     }

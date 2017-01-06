@@ -4,16 +4,7 @@ from subprocess import call
 import time
 import json
 
-
-class sfcEncap:
-    VLAN = 1
-    MAC_CHAIN = 2
-
-class odlConf(ConfigBase):
-    sfcEncap = None
-
-    def __init__(self, sfcEncap):
-        self.sfcEncap = sfcEncap
+class odlConfMC(ConfigBase):
 
     def clean(self, chainList, swList):
 
@@ -33,8 +24,7 @@ class odlConf(ConfigBase):
         self.delete(self.controller, self.DEFAULT_PORT, self.SERVICE_FUNCTION_CHAIN, True)
         self.delete(self.controller, self.DEFAULT_PORT, self.SERVICE_FUNCTION_FORWARDER, True)
         self.delete(self.controller, self.DEFAULT_PORT, self.SERVICE_FUNCTION, True)
-        if self.sfcEncap == sfcEncap.MAC_CHAIN:
-            self.delete(self.controller, self.DEFAULT_PORT, self.ACCESS_CONTROL_LIST, True)
+        self.delete(self.controller, self.DEFAULT_PORT, self.ACCESS_CONTROL_LIST, True)
 
 
         for sw in swList:
@@ -45,65 +35,52 @@ class odlConf(ConfigBase):
 
     def sfConf(self, name, id, type, ip, sff, vlan, macs, ports, confSff):
 
-        sf = {}
-        sf['name'] = name
-        sf['type'] = "service-function-type:" + type
-        sf['nsh-aware'] = "false"
-        sf['ip-mgmt-address'] = ip[0]
-        sf['sf-data-plane-locator'] = []
+            sf = {}
+            sf['name'] = name
+            sf['type'] = "service-function-type:"+type
+            sf['nsh-aware'] = "false"
+            sf['ip-mgmt-address'] = ip[0]
+            sf['sf-data-plane-locator'] = []
 
-        i = 0
-        for port, mac in zip(ports, macs):
-            sfDpl = {}
-            sfDpl['name'] = name + "-plane-" + str(i)
-            sfDpl['service-function-forwarder'] = sff
-            sfDpl['vlan-id'] = vlan
-            if (i == 0):
-                sfDpl['mac'] = mac
-            else:  # if it is two arm (snort case) seting the scond arm mac equals to the src mac addres from the input
-                sfDpl['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
+            i = 0
+            for port, mac in zip(ports, macs):
+                sfDpl = {}
+                sfDpl['name'] = name + "-plane-" + str(i)
+                sfDpl['service-function-forwarder'] = sff
+                sfDpl['vlan-id'] = vlan
+                if(i == 0):
+                    sfDpl['mac'] = mac
+                else: #if it is two arm (snort case) seting the scond arm mac equals to the src mac addres from the input
+                    sfDpl['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
 
-            i += 1
-            sfDpl['transport'] = "service-locator:mac"
-            sf['sf-data-plane-locator'].append(sfDpl)
+                i += 1
+                sfDpl['transport'] = "service-locator:mac"
+                sf['sf-data-plane-locator'].append(sfDpl)
 
-            # sff connected conf
-            sffSfDpl = {}
-            sffSfDpl['name'] = sff + "-dpl-" + name + str(port)
-            sffSfDpl['data-plane-locator'] = {}
-            sffSfDpl['data-plane-locator']['vlan-id'] = (500 + int(id))
-            sffSfDpl['data-plane-locator']['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
-            sffSfDpl['data-plane-locator']['transport'] = "service-locator:mac"
-            sffSfDpl['service-function-forwarder-ofs:ofs-port'] = {}
-            sffSfDpl['service-function-forwarder-ofs:ofs-port']['port-id'] = port
+                #sff connected conf
+                sffSfDpl = {}
+                sffSfDpl['name'] = sff + "-dpl-" + name + str(port)
+                sffSfDpl['data-plane-locator'] = {}
+                sffSfDpl['data-plane-locator']['vlan-id'] = (500 + int(id))
+                sffSfDpl['data-plane-locator']['mac'] = 'FF:00:00:00:FF:%s%d' % (id, port)
+                sffSfDpl['data-plane-locator']['transport'] = "service-locator:mac"
+                sffSfDpl['service-function-forwarder-ofs:ofs-port'] = {}
+                sffSfDpl['service-function-forwarder-ofs:ofs-port']['port-id'] = port
 
-            confSff['service-function-forwarder'][0]['sff-data-plane-locator'].append(sffSfDpl)
+                confSff['service-function-forwarder'][0]['sff-data-plane-locator'].append(sffSfDpl)
 
-            sfdict = {}
+                sfdict = {}
 
-            sfdict['name'] = sf['name']  # must be the same name as SF name
-            sfdict['sff-sf-data-plane-locator'] = {}
-            sfdict['sff-sf-data-plane-locator']['sf-dpl-name'] = sfDpl['name']
-            sfdict['sff-sf-data-plane-locator']['sff-dpl-name'] = sffSfDpl['name']
+                sfdict['name'] = sf['name']  #must be the same name as SF name
+                sfdict['sff-sf-data-plane-locator'] = {}
+                sfdict['sff-sf-data-plane-locator']['sf-dpl-name'] = sfDpl['name']
+                sfdict['sff-sf-data-plane-locator']['sff-dpl-name'] = sffSfDpl['name']
 
-            confSff['service-function-forwarder'][0]['service-function-dictionary'].append(sfdict)
-        sfs = {}
-        sfs['service-function'] = []
-        sfs['service-function'].append(sf)
-
-        return sfs
-
-    def sfType(self, type):
-        sfType = {}
-        sfType['type'] = type
-        sfType['L2-transparent'] = True
-
-        sfTypes = {}
-        sfTypes['service-function-types'] = []
-        sfTypes['service-function-types'].append(sfType)
-
-        return sfTypes
-
+                confSff['service-function-forwarder'][0]['service-function-dictionary'].append(sfdict)
+            sfs = {}
+            sfs['service-function'] = []
+            sfs['service-function'].append(sf)
+            return sfs
 
 
     def sffConfBase(self, swName, id):
@@ -225,8 +202,7 @@ class odlConf(ConfigBase):
         chainPath['service-function-path']['symmetric-classifier'] = scf2
         chainPath['service-function-path']['symmetric'] = "true"#"true"
         chainPath['service-function-path']['transport-type'] = "service-locator:mac"
-        if self.sfcEncap == sfcEncap.MAC_CHAIN:
-            chainPath['service-function-path']['sfc-encapsulation'] = "service-locator:mac-chaining"
+        chainPath['service-function-path']['sfc-encapsulation'] = "service-locator:mac-chaining"
 
         return chainPath
 
@@ -234,7 +210,7 @@ class odlConf(ConfigBase):
 
         classifier = {}
         classifier['service-function-classifier'] = {}
-        classifier['service-function-classifier']['name'] = sff + "-classifier-1" + aclName
+        classifier['service-function-classifier']['name'] = sff + "-classifier-1"
         classifier['service-function-classifier']['scl-service-function-forwarder'] = []
 
         scf = {}
@@ -253,7 +229,7 @@ class odlConf(ConfigBase):
 
         classifier = {}
         classifier['service-function-classifier'] = {}
-        classifier['service-function-classifier']['name'] = sff + "-classifier-2" + aclName
+        classifier['service-function-classifier']['name'] = sff + "-classifier-2"
         classifier['service-function-classifier']['scl-service-function-forwarder'] = []
 
         scf = {}
@@ -291,61 +267,6 @@ class odlConf(ConfigBase):
         ace['actions'] = {}
         ace['actions']['service-function-acl:rendered-service-path'] = rsp
         ace['rule-name'] = rsp + ".rule"
-
-        acl['acl']['access-list-entries']['ace'].append(ace)
-
-        return acl
-
-    def aclRuleUpTcp(self, rsp, aclName):
-
-        acl = {}
-        acl['acl'] = {}
-        acl['acl']['acl-type'] = "ietf-access-control-list:ipv4-acl"
-        acl['acl']['acl-name'] = aclName
-
-        acl['acl']['access-list-entries'] = {}
-        acl['acl']['access-list-entries']['ace'] = []
-        ace = {}
-        ace['matches'] = {}
-        ace['matches']['destination-ipv4-network'] = "10.0.0.2/0"
-        ace['matches']['protocol'] = "6"
-        ace['matches']['source-port-range'] = {}
-        ace['matches']['source-port-range']['lower-port'] = "0"
-        ace['matches']['source-port-range']['upper-port'] = "65000"
-        ace['matches']['destination-port-range'] = {}
-        ace['matches']['destination-port-range']['lower-port'] = "0"
-        ace['matches']['destination-port-range']['upper-port'] = "65000"
-
-        ace['actions'] = {}
-        ace['actions']['service-function-acl:rendered-service-path'] = rsp
-        ace['rule-name'] = rsp + ".tcp.rule"
-
-        acl['acl']['access-list-entries']['ace'].append(ace)
-
-        return acl
-
-    def aclRuleDownTcp(self, rsp, aclName):
-        acl = {}
-        acl['acl'] = {}
-        acl['acl']['acl-type'] = "ietf-access-control-list:ipv4-acl"
-        acl['acl']['acl-name'] = aclName
-
-        acl['acl']['access-list-entries'] = {}
-        acl['acl']['access-list-entries']['ace'] = []
-        ace = {}
-        ace['matches'] = {}
-        ace['matches']['destination-ipv4-network'] = "10.0.0.1/0"
-        ace['matches']['protocol'] = "6"
-        ace['matches']['source-port-range'] = {}
-        ace['matches']['source-port-range']['lower-port'] = "0"
-        ace['matches']['source-port-range']['upper-port'] = "65000"
-        ace['matches']['destination-port-range'] = {}
-        ace['matches']['destination-port-range']['lower-port'] = "0"
-        ace['matches']['destination-port-range']['upper-port'] = "65000"
-
-        ace['actions'] = {}
-        ace['actions']['service-function-acl:rendered-service-path'] = rsp + "-Reverse"
-        ace['rule-name'] = rsp + ".tcp.rule"
 
         acl['acl']['access-list-entries']['ace'].append(ace)
 

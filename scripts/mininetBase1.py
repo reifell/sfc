@@ -7,7 +7,7 @@ from mininet.clean import Cleanup
 from mininet.log import setLogLevel, info
 from subprocess import call
 import subprocess
-from odlConfGeneration import odlConf, sfcEncap
+from odlConfGeneration1 import odlConf, sfcEncap
 import re
 import time
 
@@ -49,6 +49,7 @@ class SFC:
         CLI(self.net)
         self.odl.clean(self.callBackConfs['chain'], self.callBackConfs['sw'])
         self.cleanProcess()
+        call('mn --clean', shell=True)
         Cleanup()
 
     def __init__(self, encap):
@@ -154,9 +155,6 @@ class SFC:
 
         sfConf[sf]['CONF'] = self.odl.sfConf(sf.name, num, type, sfConf[sf]['IP'], sw.name, tag, sfConf[sf]['MAC'],
                                              ports, self.getODLSwConf(sw))
-
-        sfConf[sf]['TYPE'] = self.odl.sfType(sfConf[sf]['CONF']['service-function'][0]['type'])
-
         self.callBackConfs['sf'].append(sfConf)
 
         return sf
@@ -172,8 +170,8 @@ class SFC:
         swConf[sw] = {}
         swConf[sw]['CMD'] = []
         swConf[sw]['CMD'].append('ovs-vsctl set bridge %s protocols=OpenFlow13'%(sw.name))
-        swConf[sw]['CMD'].append('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF22FF,table=11,priority=760,ip,ip_ecn=3,actions=CONTROLLER:max_len=100'%(sw.name))
-        swConf[sw]['CMD'].append('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF44FF,table=11,priority=760,ip,ip_ecn=2,actions=CONTROLLER:max_len=100'%(sw.name))
+        swConf[sw]['CMD'].append('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF22FF,table=11,priority=760,ip,ip_ecn=3,actions=CONTROLLER'%(sw.name))
+        swConf[sw]['CMD'].append('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF44FF,table=11,priority=760,ip,ip_ecn=2,actions=CONTROLLER'%(sw.name))
         swConf[sw]['CONF'] = self.odl.sffConfBase(sw.name, num)
         self.callBackConfs['sw'].append(swConf)
         return sw
@@ -276,11 +274,7 @@ class SFC:
                         self.popens[sfTopo].append(int(pid))
                 if sfTopo.name is not 'gw':
                     print "post odl conf:"
-                    if conf['CONF']['service-function'][0]['type'] is "service-function-type:ips":
-                        self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION, conf['TYPE'], True)
                     self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION, conf['CONF'], True)
-
-
 
     def deploySwConf(self):
         for sw in self.callBackConfs['sw']:
@@ -359,14 +353,6 @@ class SFC:
                         #        call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,icmp,nw_src=10.0.0.1,nw_dst=10.0.0.2,actions=mod_nw_ecn=2,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
                         #             call('ovs-ofctl -OOpenFlow13 add-flow %s priority=1010,udp,nw_dst=10.0.0.2,udp_dst=5533,actions=mod_nw_ecn=3,mod_vlan_vid:%s,output:3'%(scf, str(vlanId)), shell=True) # enter chain upstream
                         # call('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF22FF,table=0,priority=1004,in_port=2,dl_dst=00:00:00:00:00:01,actions=output:1' %(scf), shell=True)
-
-                        # bypass gw
-                        call('sudo ovs-ofctl -OOpenFlow13 add-flow %s priority=1060,ip,dl_vlan=%s,nw_dst=10.0.0.2,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:02,mod_dl_src=00:00:00:00:00:01,output:2' % (scf, str(vlanId+1)), shell=True)
-                        call('sudo ovs-ofctl -OOpenFlow13 add-flow %s priority=1060,ip,dl_vlan=%s,nw_dst=10.0.0.2,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:02,mod_dl_src=00:00:00:00:00:01,output:2' % (scf, str(vlanId+1+100)), shell=True)
-
-                        call('sudo ovs-ofctl -OOpenFlow13 add-flow %s priority=1060,ip,dl_vlan=%s,nw_dst=10.0.0.1,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:01,mod_dl_src=00:00:00:00:00:02,output:1' % (scf, str(vlanId+1)), shell=True)
-                        call('sudo ovs-ofctl -OOpenFlow13 add-flow %s priority=1060,ip,dl_vlan=%s,nw_dst=10.0.0.1,actions=pop_vlan,mod_dl_dst=00:00:00:00:00:01,mod_dl_src=00:00:00:00:00:02,output:1' % (scf, str(vlanId+1 + 100)), shell=True)
-
 
     def disableOffLoadFromIfaces(self):
         p = subprocess.Popen(['tcpdump', '-D'], stdout=subprocess.PIPE,  stderr = subprocess.PIPE)

@@ -107,6 +107,8 @@ public class PacketInListener implements PacketProcessingListener {
 
     private ConcurrentHashMap<String,  Set<TraceElement>> storedTraces = new ConcurrentHashMap<>();
 
+    private ConcurrentSkipListSet<Long> packetInCounter = new ConcurrentSkipListSet<>();
+
 
     public void close() throws ExecutionException, InterruptedException {
         // When we close this service we need to shutdown our executor!
@@ -170,6 +172,8 @@ public class PacketInListener implements PacketProcessingListener {
         if (packetReceived == null) {
             return;
         }
+        packetInCounter.add(intime);
+
         BigInteger cookie = packetReceived.getFlowCookie().getValue();
         // Make sure the PacketIn is due to our Classification table pktInAction
         if (cookie.equals(TRACE_INGRESS_PROBE_COOKIE) || cookie.equals(TRACE_EGRESS_PROBE_COOKIE) || cookie.equals(TRACE_FULL_COKIE)) {
@@ -346,6 +350,7 @@ public class PacketInListener implements PacketProcessingListener {
     public void cleanTraceMaps() {
         traceMap.clear();
         storedTraces.clear();
+        packetInCounter.clear();
         plotWriter.close();
         traceLogWriter.close();
         nFiles++;
@@ -410,7 +415,7 @@ public class PacketInListener implements PacketProcessingListener {
                 LOG.info(traceFormat);
                 output.append(String.format("[%d] %s \n", trace.getPktCount(), trace.getTraceHop()));
 
-                String plotter = trace.getPlot();
+                String plotter = trace.getPlot(packetInCounter);
                 if (plotter != null) {
                     plotWriter.append(plotter);
                 }
@@ -629,7 +634,6 @@ public class PacketInListener implements PacketProcessingListener {
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
                 timeFromLastTrace = inTime;
                 //updateStoredChains(inTime);
-
                 Long packetID = new Long(getPacktIdentification(rawPacket));
                 Set<TraceElement> traceOut = traceMap.get(packetID);
                 if (traceOut == null) {

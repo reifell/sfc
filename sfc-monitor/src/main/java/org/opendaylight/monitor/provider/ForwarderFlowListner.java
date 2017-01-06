@@ -142,8 +142,13 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
                 writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
 
             } else if (flow.getTableId() == TABLE_INDEX_INGRESS) {
+                if(flow.getId() != null & flow.getId().getValue().startsWith("classifier.rule.out")) {
+                    LOG.info("SET TRACE TO FLOW in Classifier - ----- {} ", nodeName);
+                    FlowBuilder modifiedFlow = new FlowBuilder(flow);
+                    modifiedFlow = setFlowToBeTraced(modifiedFlow);
+                    writeFlow.writeFlowToConfig(nodeName, modifiedFlow);
 
-                if (cookieLong != PacketInListener.TRACE_FULL_COKIE.longValue()){
+                } else if (cookieLong != PacketInListener.TRACE_FULL_COKIE.longValue()){
                     if (getOutputPort(flow.getInstructions().getInstruction()) != null) {
                         // just write flows for non POP NSH rules (bug on OVS??)
                         if (!IsPopNshRule(flow.getInstructions().getInstruction())) {
@@ -276,6 +281,72 @@ public class ForwarderFlowListner implements ClusteredDataTreeChangeListener<Flo
         newInstructions.setInstruction(instructionList);
 
         flowBuilder.setInstructions(newInstructions.build());
+
+        FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
+                flowBuilder.getTableId(),
+                flowBuilder.getPriority() + 1,
+                PacketInListener.TRACE_FULL_COKIE,
+                "trace_flow", newMatch, newInstructions);
+
+        return newFlowBuilder;
+    }
+
+    private FlowBuilder setFlowToBeTraced(FlowBuilder flowBuilder) {
+
+        Instructions instruction = flowBuilder.getInstructions();
+        List<Instruction> instructionList = instruction.getInstruction();
+
+        int j = 0;
+        List<Action> newActionList = new ArrayList<>();
+        for (Instruction instruct : instructionList) {
+            if (instruct.getInstruction() instanceof ApplyActionsCase) {
+                ApplyActionsCase actionscase = (ApplyActionsCase) instruct.getInstruction();
+                ApplyActions actions = actionscase.getApplyActions();
+                newActionList.add(SfcOpenflowUtils.createActionDecTTL(0));
+                newActionList.add(SfcOpenflowUtils.createActionAddProbePacket(1));
+                for (Action action : actions.getAction()) {
+                    ActionBuilder ab = createActionBuilder(action.getOrder() + 2);
+                    ab.setAction(action.getAction());
+                    newActionList.add(ab.build());
+                }
+                break;
+            }
+            j++;
+        }
+
+        instructionList.remove(j);
+        // add actions
+        ApplyActionsBuilder aab = new ApplyActionsBuilder();
+        aab.setAction(newActionList);
+        InstructionBuilder ib = new InstructionBuilder();
+        ib.setInstruction(new ApplyActionsCaseBuilder().setApplyActions(aab.build()).build());
+        ib.setKey(new InstructionKey(j));
+        ib.setOrder(j);
+        instructionList.add(ib.build());
+
+
+        // add write metadata with port information
+        String outPort = getOutputPort(instructionList);
+        if (String.valueOf("INPORT").equals(outPort)) {
+                outPort = "0";
+            }
+
+        BigInteger metadataPort = new BigInteger(outPort, COOKIE_BIGINT_HEX_RADIX);
+
+        int ibOrder = instructionList.size();
+        addMetadata(instructionList, metadataPort, ibOrder);
+        ibOrder++;
+
+        short nextTable = TABLE_INDEX_TRANSPORT_EGRESS + 1;
+        instructionList.add(setActionGoToTable(nextTable, ibOrder));
+        InstructionsBuilder newInstructions = new InstructionsBuilder();
+
+        newInstructions.setInstruction(instructionList);
+
+        flowBuilder.setInstructions(newInstructions.build());
+
+        Match match = flowBuilder.getMatch();
+        MatchBuilder newMatch = new MatchBuilder(match);
 
         FlowBuilder newFlowBuilder = SfcOpenflowUtils.createFlowBuilder(
                 flowBuilder.getTableId(),
