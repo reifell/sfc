@@ -222,16 +222,13 @@ public class PacketInListener implements PacketProcessingListener {
      * @param rawPacket
      * @return srcIp String
      */
-    private String getSrcIpStr(final byte[] rawPacket) {
-        final byte[] ipSrcBytes = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP_SRC, PACKET_OFFSET_IP_SRC + 4);
-        String pktSrcIpStr = null;
-        try {
-            pktSrcIpStr = InetAddress.getByAddress(ipSrcBytes).getHostAddress();
-        } catch (Exception e) {
-            LOG.error("Exception getting Src IP address [{}]", e.getMessage(), e);
-        }
+    private int getSrcIp(final byte[] rawPacket) { // just the end of the addres
+        final byte[] ipSrcBytes = Arrays.copyOfRange(rawPacket, PACKET_OFFSET_IP_SRC +2, PACKET_OFFSET_IP_SRC + 4);
 
-        return pktSrcIpStr;
+        int ipSrcEnd = packShort(ipSrcBytes, 2);
+
+        return ipSrcEnd;
+
     }
 
     /**
@@ -290,7 +287,7 @@ public class PacketInListener implements PacketProcessingListener {
 
     private long getPacktIdentification (final byte[] rawPacket) {
         //LOG.info("ipFlag {} ipId {}", getIpflags(rawPacket), getIpId(rawPacket));
-        return (((long)getIpflags(rawPacket)) << 32) | (getIpId(rawPacket) & 0xffffffffL);
+        return (((long)getSrcIp(rawPacket)) << 32) | (getIpId(rawPacket) & 0xffffffffL);
     }
 
     private int getIpflags(final byte[] rawPacket) {
@@ -406,9 +403,10 @@ public class PacketInListener implements PacketProcessingListener {
 //                                hopDStr += String.format("%d, ", hopD.hopDelay);
 //                            }
 //                            LOG.info(" delays [{}]", hopDStr);
-                String avfHopDelay = String.format("avg hop delay (%.2f)", trace.getHopDelayAverage());
+                float avgDelay = trace.getHopDelayAverage();
+                String avfHopDelay = String.format("avg hop delay (%.2f)", avgDelay);
                 LOG.info(avfHopDelay);
-                output.append(String.format("avg delay (%.2f) \n", trace.getHopDelayAverage()));
+                output.append(String.format("avg delay (%.2f) \n", avgDelay));
 
 
                 String traceFormat = String.format("{[%d] %s} - <%d>", trace.getPktCount(), trace.getTraceHop(), trace.getLastTime());
@@ -430,7 +428,18 @@ public class PacketInListener implements PacketProcessingListener {
         return output.toString();
     }
 
-    private void updateStoredChains(long inTime) {
+    private synchronized void updateStoredChains(long inTime) {
+//        int i = 0;
+//
+//        for (ConcurrentHashMap.Entry<Long, Set<TraceElement>> traceMapElement : traceMap.entrySet()) {
+//            if(traceMapElement.getValue().size() != 3) {
+//                LOG.error("[xxx] size {}", traceMapElement.getValue().size());
+//                i++;
+//            }
+//
+//        }
+//        LOG.error("total size {}", i);
+
 
         ArrayList<Long> found = new ArrayList<>();
         for (ConcurrentHashMap.Entry<Long, Set<TraceElement>> traceMapElement : traceMap.entrySet()) {
@@ -449,7 +458,7 @@ public class PacketInListener implements PacketProcessingListener {
                 for (Set<TraceElement> tracesFromStore : storedTraces.values()) {
 
                     //compare the ordered trace using the name of each hop
-                    //if (tracesFromStore.equals(traceMapElement.getValue())) {
+
                     if (TraceElement.isSameChain(tracesFromStore, traceMapElement.getValue())) {
                         //update timestamp from each hop
                         long previousHopDelay = 0;
@@ -633,12 +642,18 @@ public class PacketInListener implements PacketProcessingListener {
             ServiceFunction sfOut = null;
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
                 timeFromLastTrace = inTime;
-                //updateStoredChains(inTime);
+                Set<TraceElement> traceOut;
                 Long packetID = new Long(getPacktIdentification(rawPacket));
-                Set<TraceElement> traceOut = traceMap.get(packetID);
-                if (traceOut == null) {
-                    traceMap.putIfAbsent(packetID, new ConcurrentSkipListSet<TraceElement>(new TraceElement.TraceEmentComparator()));
+                //updateStoredChains(inTime);
+                synchronized (traceMap) {
+                    //traceOut = traceMap.putIfAbsent(packetID, new ConcurrentSkipListSet<TraceElement>(new TraceElement.TraceEmentComparator()));
                     traceOut = traceMap.get(packetID);
+                    if (traceOut == null) {
+                        traceMap.putIfAbsent(packetID, new ConcurrentSkipListSet<TraceElement>(new TraceElement.TraceEmentComparator()));
+                        traceOut = traceMap.get(packetID);
+                        String logTrace = String.format("add new element %d \n", traceMap.size());
+                        traceLogWriter.append(logTrace);
+                    }
                 }
 
                 if (outSfDpl == null) {
@@ -674,9 +689,9 @@ public class PacketInListener implements PacketProcessingListener {
                 //packetOutSender.sendPacketToPort(nodeName, packetReceived.getMatch().getMetadata().getMetadata().toString(), packetReceived.getPayload());
                 if (timetoUpdate == 0) {
                     timetoUpdate = inTime;
-                } else if ( inTime  >  timetoUpdate + TEN_SECONDS) {
-                 //   updateStoredChains(inTime);
+                } else if ( inTime  >  timetoUpdate + (5 * 1000)) {
                     timetoUpdate = inTime;
+                    updateStoredChains(inTime);
                 }
 
             }

@@ -106,7 +106,8 @@ public class TraceElement  {
         Long range;
         if (!plotDelay.isEmpty()) {
             initialTime = plotDelay.firstKey();
-            range = plotDelay.lastEntry().getKey() - plotDelay.firstEntry().getKey();
+            Long finalTime = plotDelay.lastKey();
+            range = finalTime - initialTime;
         } else {
             return null;
         }
@@ -146,10 +147,14 @@ public class TraceElement  {
     public float getHopDelayAverage() {
         float sum = 0;
         for (TimeAndHop d : timeAndHops) {
-            sum += (float)d.hopDelay;
-            if (d.timestamp > lastPlot) {
-                plotDelay.put(d.timestamp, d.hopDelay);
+            sum += (float) d.hopDelay;
+
+            int hopDelay = d.hopDelay;
+            //as map does not support duplicate keys, compute the average beetween both keys and store in the same timestamp
+            if (plotDelay.containsKey(d.timestamp)) {
+                hopDelay = (plotDelay.get(d.timestamp) + d.hopDelay) / 2;
             }
+            plotDelay.put(d.timestamp, hopDelay);
         }
         if (timeAndHops.size() == 0) return sum;
         return sum / (float)timeAndHops.size();
