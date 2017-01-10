@@ -77,7 +77,7 @@ public class PacketInListener implements PacketProcessingListener {
     public static final String TABLE_ZERO_IDENTIFICATION = "8989";
 
     private static final int SCHEDULED_THREAD_POOL_SIZE = 1;
-    private static final int QUEUE_SIZE = 10000;
+    private static final int QUEUE_SIZE = 1000000;
     private static final int ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS = 300;
     private static final long SHUTDOWN_TIME = 5;
 
@@ -107,7 +107,7 @@ public class PacketInListener implements PacketProcessingListener {
 
     private ConcurrentHashMap<String,  Set<TraceElement>> storedTraces = new ConcurrentHashMap<>();
 
-    private ConcurrentSkipListSet<Long> packetInCounter = new ConcurrentSkipListSet<>();
+    private ArrayList<Long> packetInCounter = new ArrayList<>();
 
 
     public void close() throws ExecutionException, InterruptedException {
@@ -127,7 +127,7 @@ public class PacketInListener implements PacketProcessingListener {
     public PacketInListener(NotificationProviderService notificationProviderService, PacketOutSender packetOutSender) {
 
         this.packetOutSender = packetOutSender;
-        this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, 500,
+        this.threadPoolExecutorService = new ThreadPoolExecutor(SCHEDULED_THREAD_POOL_SIZE, 100000,
                 ASYNC_THREAD_POOL_KEEP_ALIVE_TIME_SECS, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(QUEUE_SIZE));
 
@@ -172,7 +172,7 @@ public class PacketInListener implements PacketProcessingListener {
         if (packetReceived == null) {
             return;
         }
-        packetInCounter.add(intime);
+
 
         BigInteger cookie = packetReceived.getFlowCookie().getValue();
         // Make sure the PacketIn is due to our Classification table pktInAction
@@ -287,7 +287,7 @@ public class PacketInListener implements PacketProcessingListener {
 
     private long getPacktIdentification (final byte[] rawPacket) {
         //LOG.info("ipFlag {} ipId {}", getIpflags(rawPacket), getIpId(rawPacket));
-        return (((long)getSrcIp(rawPacket)) << 32) | (getIpId(rawPacket) & 0xffffffffL);
+        return (((long)getIpflags(rawPacket)) << 32) | (getIpId(rawPacket) & 0xffffffffL);
     }
 
     private int getIpflags(final byte[] rawPacket) {
@@ -429,18 +429,7 @@ public class PacketInListener implements PacketProcessingListener {
     }
 
     private synchronized void updateStoredChains(long inTime) {
-//        int i = 0;
-//
-//        for (ConcurrentHashMap.Entry<Long, Set<TraceElement>> traceMapElement : traceMap.entrySet()) {
-//            if(traceMapElement.getValue().size() != 3) {
-//                LOG.error("[xxx] size {}", traceMapElement.getValue().size());
-//                i++;
-//            }
-//
-//        }
-//        LOG.error("total size {}", i);
-
-
+        int i =0;
         ArrayList<Long> found = new ArrayList<>();
         for (ConcurrentHashMap.Entry<Long, Set<TraceElement>> traceMapElement : traceMap.entrySet()) {
 
@@ -491,6 +480,12 @@ public class PacketInListener implements PacketProcessingListener {
         for (Long key : found) {
             traceMap.remove(key);
         }
+
+        LOG.error("total size {}; map size {}; pkt counter {};  poolsize {} -> {} alive {} task {} fila {}", i, traceMap.size(), packetInCounter.size(),
+                this.threadPoolExecutorService.getPoolSize(), this.threadPoolExecutorService.getLargestPoolSize(), this.threadPoolExecutorService.getActiveCount(),
+                this.threadPoolExecutorService.getTaskCount(), this.threadPoolExecutorService.getQueue().size()
+        );
+
     }
 
     private byte[] getPayLoad(final byte[] inPacket) {
@@ -531,14 +526,12 @@ public class PacketInListener implements PacketProcessingListener {
 
 
         public void run() {
-            String packetDirec = "IN";
-            if (packetReceived.getFlowCookie().getValue().equals(TRACE_EGRESS_PROBE_COOKIE)) {
-                packetDirec = "OUT";
-            }
 
             byte[] rawPacketVlan = getPayLoad(packetReceived.getPayload());
 
             if (rawPacketVlan == null) {
+                LOG.error("rawPacketVlan == null");
+
                 return;
             }
 
@@ -565,10 +558,13 @@ public class PacketInListener implements PacketProcessingListener {
             }
 
             if (rawPacket == null) {
+                LOG.error("rawPacket == null");
                 return;
             }
 
             if (getEcn(rawPacket) != PROBE_PACKET_FULL_TRACE_ID && getEcn(rawPacket) != PROBE_PACKET_TIME_STAMP_ID) {
+                LOG.error("getEcn(rawPacket) != PROBE_PACKET_FULL_TRACE_ID ");
+
                 return;
             }
 
@@ -632,12 +628,19 @@ public class PacketInListener implements PacketProcessingListener {
                 }
             }
 
+//            synchronized (packetInCounter){
+//                packetInCounter.add(this.inTime);
+//            }
+
             // get input from previous SF
             if (tp.getTpId() == null) {
                 return;
             }
             String parts[] = tp.getTpId().getValue().split(":");
             //String inSfDpl = topo.readSfDplFromSff(sff, parts[2]);
+
+            //String tracePkt = String.format("pkt %s \n", getPacktIdentification(rawPacket));
+            //traceLogWriter.append(tracePkt);
 
             ServiceFunction sfOut = null;
             if (packetReceived.getFlowCookie().getValue().equals(TRACE_FULL_COKIE)) {
@@ -646,13 +649,10 @@ public class PacketInListener implements PacketProcessingListener {
                 Long packetID = new Long(getPacktIdentification(rawPacket));
                 //updateStoredChains(inTime);
                 synchronized (traceMap) {
-                    //traceOut = traceMap.putIfAbsent(packetID, new ConcurrentSkipListSet<TraceElement>(new TraceElement.TraceEmentComparator()));
                     traceOut = traceMap.get(packetID);
                     if (traceOut == null) {
                         traceMap.putIfAbsent(packetID, new ConcurrentSkipListSet<TraceElement>(new TraceElement.TraceEmentComparator()));
                         traceOut = traceMap.get(packetID);
-                        String logTrace = String.format("add new element %d \n", traceMap.size());
-                        traceLogWriter.append(logTrace);
                     }
                 }
 
@@ -675,18 +675,11 @@ public class PacketInListener implements PacketProcessingListener {
                 traceElement.setInTime(inTime);
                 traceOut.add(traceElement);
 
-                String logTrace = String.format("size M %d, T %d -> [%d] -> %s [%d] \n",
-                        traceMap.size(), traceOut.size(), packetID, traceElement.getTraceHop(), traceElement.getInTime());
-                traceLogWriter.append(logTrace);
+               // String logTrace = String.format("size M %d, T %d -> [%d] -> %s [%d] \n",
+               //         traceMap.size(), traceOut.size(), packetID, traceElement.getTraceHop(), traceElement.getInTime());
+               // traceLogWriter.append(logTrace);
 
 
-
-                //traceWriter.append(traceElement.getTraceHop());
-
-                //Collections.sort(traceOut);
-
-
-                //packetOutSender.sendPacketToPort(nodeName, packetReceived.getMatch().getMetadata().getMetadata().toString(), packetReceived.getPayload());
                 if (timetoUpdate == 0) {
                     timetoUpdate = inTime;
                 } else if ( inTime  >  timetoUpdate + (5 * 1000)) {

@@ -12,7 +12,6 @@ import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sf.rev14070
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.sfc.sff.rev140701.service.function.forwarders.ServiceFunctionForwarder;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * Created by rafael on 7/18/16.
@@ -25,7 +24,7 @@ public class TraceElement  {
     private String traceHop;
     private ArrayList<TimeAndHop> timeAndHops = new ArrayList<>();
     private int ttl = 0;
-    private TreeMap<Long, Integer> plotDelay = new TreeMap<>();
+    private TreeMap<Long, HopAndPktCounter> plotDelay = new TreeMap<>();
     private Long lastPlot = new Long(0);
     private long inTime;
 
@@ -46,6 +45,15 @@ public class TraceElement  {
         }
         public long timestamp;
         public int hopDelay;
+    }
+
+    public class HopAndPktCounter {
+        HopAndPktCounter(float hopDelay, int pktCounter) {
+            this.hopDelayBySec = hopDelay;
+            this.pktCounter = pktCounter;
+        }
+        public float hopDelayBySec;
+        public int pktCounter;
     }
 
     TraceElement() {}
@@ -94,14 +102,15 @@ public class TraceElement  {
         timeAndHops.add(new TimeAndHop(timestamp, delay));
     }
 
-    public String getPlot(ConcurrentSkipListSet<Long> pktInCounter) {
+    public String getPlot(ArrayList<Long> pktInCounter) {
+        Collections.sort(pktInCounter);
         if (plotDelay == null) {
             return null;
         }
 
         StringBuilder plot = new StringBuilder();
         float sum = 0;
-        int ppCount = 0;
+        long ppCount = 0;
         Long initialTime;
         Long range;
         if (!plotDelay.isEmpty()) {
@@ -114,23 +123,33 @@ public class TraceElement  {
 
         long graphStep = range/(long)100;
         Long firstCycleTime = (long)0;
-        for (Map.Entry<Long, Integer> element : plotDelay.entrySet()) {
+        int countPos = 0;
+        for (Map.Entry<Long, HopAndPktCounter> element : plotDelay.entrySet()) {
             if (ppCount == 0) firstCycleTime = element.getKey();
-            ppCount++;
-            sum += element.getValue();
+            ppCount += element.getValue().pktCounter;
+            sum += element.getValue().hopDelayBySec;
+            countPos++;
             if (element.getKey() >= firstCycleTime + graphStep) {
                 float rangeTimeInSec = (float)(element.getKey() - firstCycleTime)/(float)1000;
                 float pktPerSecond = ppCount / rangeTimeInSec;
-                float avg = sum / (float)ppCount;
+                float avg = sum / (float)countPos;
 //                plot.append(String.format(" debug %d; %d; %.2f\n", ppCount, pktInCounter.subSet(firstCycleTime, element.getKey()).size(), rangeTimeInSec));
 
-                float totalPacketIn = pktInCounter.subSet(firstCycleTime, element.getKey()).size()/rangeTimeInSec;
+                float totalPacketIn = 0; // pktInCounter.subSet(firstCycleTime, element.getKey()).size()/rangeTimeInSec;
                 //format:  timestamp  -  averge delay   -   pkts per senconds   -  total pktin per second
                 plot.append(String.format("%.2f; %.2f; %.2f; %.2f\n", (float)(element.getKey() - initialTime)/(float)1000, avg, pktPerSecond, totalPacketIn));
                 sum = 0;
                 ppCount = 0;
+                countPos = 0;
+            }
+            if (element.equals(plotDelay.lastEntry())) {
+                plot.append(String.format("total count %d - %d\n",ppCount,  getPktCount()) );
+                sum = 0;
+                ppCount = 0;
+                countPos = 0;
             }
         }
+
         if (!plotDelay.isEmpty()) {
             lastPlot = plotDelay.lastKey();
             plotDelay.clear();
@@ -149,12 +168,16 @@ public class TraceElement  {
         for (TimeAndHop d : timeAndHops) {
             sum += (float) d.hopDelay;
 
-            int hopDelay = d.hopDelay;
+            HopAndPktCounter hopAndPktCounter = plotDelay.get(d.timestamp);
             //as map does not support duplicate keys, compute the average beetween both keys and store in the same timestamp
-            if (plotDelay.containsKey(d.timestamp)) {
-                hopDelay = (plotDelay.get(d.timestamp) + d.hopDelay) / 2;
+            if (hopAndPktCounter == null) {
+                hopAndPktCounter = new HopAndPktCounter(d.hopDelay, 1);
+            } else {
+                hopAndPktCounter.hopDelayBySec = (plotDelay.get(d.timestamp).hopDelayBySec + (float) d.hopDelay) / (float)2;
+                hopAndPktCounter.pktCounter++;
             }
-            plotDelay.put(d.timestamp, hopDelay);
+
+            plotDelay.put(d.timestamp, hopAndPktCounter);
         }
         if (timeAndHops.size() == 0) return sum;
         return sum / (float)timeAndHops.size();
