@@ -51,12 +51,13 @@ class SFC:
         self.cleanProcess()
         Cleanup()
 
-    def __init__(self, encap):
+    def __init__(self, encap, controller):
         self.odl = odlConf(encap)
         self.odl.readParameters()
         call('mn --clean', shell=True)
         time.sleep(1)
 
+        self.YOUR_CONTROLLER_IP = controller
         #reset OVS to get new uuid on OVSDB
         call('service openvswitch-switch stop', shell=True)
         call('rm -rf /var/log/openvswitch/*', shell=True)
@@ -140,16 +141,18 @@ class SFC:
 
         tag = 300 + int(num)
         sfConf[sf]['CMD'] = []
-        sfConf[sf]['CMD'].append("vconfig add snort%s-eth0 %s" % (num, str(tag)))
-        sfConf[sf]['CMD'].append("ip link set up snort%s-eth0.%s" % (num, str(tag)))
 
-        sfConf[sf]['CMD'].append("vconfig add snort%s-eth1 %s" % (num, str(tag)))
-        sfConf[sf]['CMD'].append("ip link set up snort%s-eth1.%s" % (num, str(tag)))
+        if self.odl.sfcEncap == sfcEncap.VLAN:
+            sfConf[sf]['CMD'].append("vconfig add snort%s-eth0 %s" % (num, str(tag)))
+            sfConf[sf]['CMD'].append("ip link set up snort%s-eth0.%s" % (num, str(tag)))
 
-#        sfConf[sf]['CMD'].append("/usr/sbin/snort -A console --daq afpacket -Q  -c /etc/snort/snort.conf -i snort%s-eth0.%s:snort%s-eth1.%s -l /tmp/ > ./snort%s.out 2>&1 &"
-#                                 % (num, str(tag),num, str(tag), num ))
-        sfConf[sf]['CMD'].append("/usr/sbin/snort --daq afpacket -Q -K ascii -c /etc/snort/snort.conf -i snort%s-eth0.%s:snort%s-eth1.%s -l /tmp/ > ./snort%s.out 2>&1 &"
-            % (num, str(tag), num, str(tag), num))
+            sfConf[sf]['CMD'].append("vconfig add snort%s-eth1 %s" % (num, str(tag)))
+            sfConf[sf]['CMD'].append("ip link set up snort%s-eth1.%s" % (num, str(tag)))
+            sfConf[sf]['CMD'].append("/usr/sbin/snort --daq afpacket -Q -K ascii -c /etc/snort/snort.conf -i snort%s-eth0.%s:snort%s-eth1.%s -l /tmp/ > ./snort%s.out 2>&1 &"
+                % (num, str(tag), num, str(tag), num))
+        elif self.odl.sfcEncap == sfcEncap.MAC_CHAIN:
+            sfConf[sf]['CMD'].append("/usr/sbin/snort --daq afpacket -Q -K ascii -c /etc/snort/snort.conf -i snort%s-eth0:snort%s-eth1 -l /tmp/ > ./snort%s.out 2>&1 &"
+                % (num, num, num))
 
 
         sfConf[sf]['CONF'] = self.odl.sfConf(sf.name, num, type, sfConf[sf]['IP'], sw.name, tag, sfConf[sf]['MAC'],
@@ -276,8 +279,9 @@ class SFC:
                         self.popens[sfTopo].append(int(pid))
                 if sfTopo.name is not 'gw':
                     print "post odl conf:"
-                    if conf['CONF']['service-function'][0]['type'] is "service-function-type:ips":
-                        self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION, conf['TYPE'], True)
+                    print conf['CONF']['service-function'][0]['type']
+                    if conf['CONF']['service-function'][0]['type'] == "service-function-type:ips" or  conf['CONF']['service-function'][0]['type'] == "service-function-type:ips1":
+                        self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION_TYPE, conf['TYPE'], True)
                     self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION, conf['CONF'], True)
 
 

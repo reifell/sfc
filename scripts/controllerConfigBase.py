@@ -22,7 +22,7 @@ class ConfigBase:
     SERVICE_RENDERED_PATH_DEL = '/restconf/operations/rendered-service-path:delete-rendered-path'
     CONTEXT_METADATA = '/restconf/config/service-function-path-metadata:service-function-metadata'
     DISABLE_STATISTICS = '/restconf/operations/statistics-manager-control:change-statistics-work-mode/'
-    SERVICE_FUNCTION_TYPE = 'service-function-type:service-function-types'
+    SERVICE_FUNCTION_TYPE = '/restconf/config/service-function-type:service-function-types'
 
 
 

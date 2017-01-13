@@ -99,8 +99,8 @@ class odlConf(ConfigBase):
         sfType['L2-transparent'] = True
 
         sfTypes = {}
-        sfTypes['service-function-types'] = []
-        sfTypes['service-function-types'].append(sfType)
+        sfTypes['service-function-type'] = []
+        sfTypes['service-function-type'].append(sfType)
 
         return sfTypes
 
@@ -189,7 +189,7 @@ class odlConf(ConfigBase):
         termination['data-plane-locator']['mac'] = 'AA:00:00:00:AA:5%s' % (id1)
         termination['data-plane-locator']['transport'] = "service-locator:mac"
         termination['service-function-forwarder-termination:termination-point'] = {}
-        termination['service-function-forwarder-termination:termination-point']['sw-port'] = port
+        termination['service-function-forwarder-termination:termination-point']['port-id'] = port
         termination['service-function-forwarder-termination:termination-point']['mac-address'] = mac
 
         confSff['service-function-forwarder'][0]['sff-data-plane-locator'].append(termination)

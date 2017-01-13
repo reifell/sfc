@@ -3,11 +3,12 @@
 from subprocess import call
 from mininetBase import SFC
 from odlConfGeneration import sfcEncap
+import sys
 
 
 if __name__ == "__main__":
 
-    sfc = SFC(sfcEncap.VLAN)
+    sfc = SFC(sfcEncap.MAC_CHAIN, sys.argv[1])
 
     sw1 = sfc.addSw()
     sw2 = sfc.addSw()
