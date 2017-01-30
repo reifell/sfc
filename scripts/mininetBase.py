@@ -9,6 +9,7 @@ from subprocess import call
 import subprocess
 from odlConfGeneration import odlConf, sfcEncap
 import re
+import os
 import time
 
 
@@ -19,6 +20,7 @@ class SFC:
     callBackConfs = {'host': [], 'sf': [], 'sw': [], 'chain':[] }
     odl = None
     topo = None
+    ovsUuid = None
     sffs = []
     hosts = []
     sfs = []
@@ -59,14 +61,17 @@ class SFC:
 
         self.YOUR_CONTROLLER_IP = controller
         #reset OVS to get new uuid on OVSDB
-        call('service openvswitch-switch stop', shell=True)
-        call('rm -rf /var/log/openvswitch/*', shell=True)
-        call('rm -rf /etc/openvswitch/conf.db', shell=True)
-        time.sleep(5)
-        call('service openvswitch-switch start', shell=True)
-        call('ovs-vsctl set-manager tcp:%s' %self.YOUR_CONTROLLER_IP, shell=True)
+        #call('service openvswitch-switch stop', shell=True)
+        #call('rm -rf /var/log/openvswitch/*', shell=True)
+        #call('rm -rf /etc/openvswitch/conf.db', shell=True)
+        #time.sleep(5)
+        #call('service openvswitch-switch start', shell=True)
 
-        call('mn --clean', shell=True)
+        call('ovs-vsctl set-manager tcp:%s:6640' %self.YOUR_CONTROLLER_IP, shell=True)
+
+        self.ovsUuid = self.getOvsdbId()
+
+        #call('mn --clean', shell=True)
 
         self.net = Mininet(controller=None)
         self.net.addController('c0', controller=RemoteController, ip=self.odl.controller, port=6633)
@@ -106,10 +111,10 @@ class SFC:
         if self.odl.sfcEncap == sfcEncap.VLAN:
             sfConf[sf]['CMD'].append("vconfig add sf%s-eth0 %s" % (num, str(tag)))
             sfConf[sf]['CMD'].append("ip link set up sf%s-eth0.%s" % (num, str(tag)))
-            sfConf[sf]['CMD'].append("./functions/sf_dummy-icmp sf%s-eth0.%s > ./sf%s-icmp.out 2>&1 &" % (num, str(tag), num))
+            #sfConf[sf]['CMD'].append("./functions/sf_dummy-icmp sf%s-eth0.%s > ./sf%s-icmp.out 2>&1 &" % (num, str(tag), num))
             sfConf[sf]['CMD'].append("./functions/sf_dummy-udptcp sf%s-eth0.%s > ./sf%s-udp.out 2>&1 &" % (num, str(tag), num))
         elif self.odl.sfcEncap == sfcEncap.MAC_CHAIN:
-            sfConf[sf]['CMD'].append("./functions/sf_dummy-icmp sf%s-eth0 > ./sf%s-icmp.out 2>&1 &" % (num, num))
+            #sfConf[sf]['CMD'].append("./functions/sf_dummy-icmp sf%s-eth0 > ./sf%s-icmp.out 2>&1 &" % (num, num))
             sfConf[sf]['CMD'].append("./functions/sf_dummy-udptcp sf%s-eth0 > ./sf%s-udp.out 2>&1 &" % (num, num))
 
 
@@ -177,7 +182,7 @@ class SFC:
         swConf[sw]['CMD'].append('ovs-vsctl set bridge %s protocols=OpenFlow13'%(sw.name))
         swConf[sw]['CMD'].append('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF22FF,table=11,priority=760,ip,ip_ecn=3,actions=CONTROLLER:max_len=100'%(sw.name))
         swConf[sw]['CMD'].append('ovs-ofctl -OOpenFlow13 add-flow %s cookie=0xFF44FF,table=11,priority=760,ip,ip_ecn=2,actions=CONTROLLER:max_len=100'%(sw.name))
-        swConf[sw]['CONF'] = self.odl.sffConfBase(sw.name, num)
+        swConf[sw]['CONF'] = self.odl.sffConfBase(sw.name, num, self.ovsUuid)
         self.callBackConfs['sw'].append(swConf)
         return sw
 
@@ -279,7 +284,6 @@ class SFC:
                         self.popens[sfTopo].append(int(pid))
                 if sfTopo.name is not 'gw':
                     print "post odl conf:"
-                    print conf['CONF']['service-function'][0]['type']
                     if conf['CONF']['service-function'][0]['type'] == "service-function-type:ips" or  conf['CONF']['service-function'][0]['type'] == "service-function-type:ips1":
                         self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION_TYPE, conf['TYPE'], True)
                     self.odl.post(self.odl.controller, self.odl.DEFAULT_PORT, self.odl.SERVICE_FUNCTION, conf['CONF'], True)
@@ -388,4 +392,11 @@ class SFC:
             for cmd in cmds:
                 print cmd
                 call('kill %d' %(cmd), shell=True) #SIGINT
+
+    def getOvsdbId(self):
+        output1 = subprocess.check_output('ovs-vsctl show', shell=True,  universal_newlines=True, stderr=subprocess.STDOUT, preexec_fn=os.setsid)
+        res = output1.split("\n")
+        return res[0]
+
+
 

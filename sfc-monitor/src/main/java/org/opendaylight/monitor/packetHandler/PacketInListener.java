@@ -33,6 +33,7 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Ethernet Packet Decoder
@@ -93,6 +94,9 @@ public class PacketInListener implements PacketProcessingListener {
     private TraceWriter traceWriter = null;
     private TraceWriter plotWriter = null;
     private int nFiles = 0;
+
+    private AtomicLong pktConuter = new AtomicLong();
+
 
 
     private PacketOutSender packetOutSender = null;
@@ -404,16 +408,17 @@ public class PacketInListener implements PacketProcessingListener {
 //                            }
 //                            LOG.info(" delays [{}]", hopDStr);
                 float avgDelay = trace.getHopDelayAverage();
-                String avfHopDelay = String.format("avg hop delay (%.2f)", avgDelay);
+                double stdDev = 0; //trace.getStdDev(avgDelay);
+                String avfHopDelay = String.format("avg hop delay (%.2f) (%.2f)", avgDelay, stdDev);
                 LOG.info(avfHopDelay);
-                output.append(String.format("avg delay (%.2f) \n", avgDelay));
+                output.append(String.format("avg delay (%.2f) (%.2f)\n", avgDelay, stdDev));
 
 
                 String traceFormat = String.format("{[%d] %s} - <%d>", trace.getPktCount(), trace.getTraceHop(), trace.getLastTime());
                 LOG.info(traceFormat);
                 output.append(String.format("[%d] %s \n", trace.getPktCount(), trace.getTraceHop()));
 
-                String plotter = trace.getPlot(packetInCounter);
+                String plotter = trace.getPlot();
                 if (plotter != null) {
                     plotWriter.append(plotter);
                 }
@@ -617,20 +622,21 @@ public class PacketInListener implements PacketProcessingListener {
             ServiceFunctionForwarder sff = topo.readSFF(nodeName);
 
             // get next output port
+            BigInteger metadataTalbeId = new BigInteger(TABLE_ZERO_IDENTIFICATION, COOKIE_BIGINT_HEX_RADIX);
             String outSfDpl = null;
             BigInteger metadataPort = new BigInteger("0");
-            if (packetReceived.getMatch().getMetadata() != null) {
+            if (packetReceived.getMatch().getMetadata() != null ) {
                 metadataPort = packetReceived.getMatch().getMetadata().getMetadata();
-                if (metadataPort != null) {
+                if (metadataPort != null && !metadataPort.equals(metadataTalbeId)) {
                     outSfDpl = topo.readSfDplFromSff(sff, metadataPort.toString());
                 } else {
                     LOG.error("could not read metadata");
                 }
             }
 
-//            synchronized (packetInCounter){
-//                packetInCounter.add(this.inTime);
-//            }
+            synchronized (packetInCounter){
+                packetInCounter.add(this.inTime);
+            }
 
             // get input from previous SF
             if (tp.getTpId() == null) {
@@ -658,7 +664,6 @@ public class PacketInListener implements PacketProcessingListener {
 
                 if (outSfDpl == null) {
                     // if table zero pakcet it not going to an SF. Pakcet is going to other siwtch.
-                    BigInteger metadataTalbeId = new BigInteger(TABLE_ZERO_IDENTIFICATION, COOKIE_BIGINT_HEX_RADIX);
                     if (!metadataPort.equals(metadataTalbeId)) {
                         sfOut = topo.readSfNameByRsp(nsp, nsi);
                     }

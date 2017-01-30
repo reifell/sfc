@@ -48,7 +48,6 @@ class odlConf(ConfigBase):
         sf = {}
         sf['name'] = name
         sf['type'] = "service-function-type:" + type
-        sf['nsh-aware'] = "false"
         sf['ip-mgmt-address'] = ip[0]
         sf['sf-data-plane-locator'] = []
 
@@ -106,7 +105,7 @@ class odlConf(ConfigBase):
 
 
 
-    def sffConfBase(self, swName, id):
+    def sffConfBase(self, swName, id, uuid):
 
         print "config sff"
         print self.controller
@@ -117,8 +116,10 @@ class odlConf(ConfigBase):
         sff['service-function-forwarder-ovs:ovs-bridge'] = {}
         sff['service-function-forwarder-ovs:ovs-bridge']['bridge-name'] = swName
         sff['service-function-forwarder-ovs:ovs-bridge']['openflow-node-id'] = "openflow:" + id
-        #sff['service-function-forwarder-ovs:ovs-node'] = {}
-        #sff['service-function-forwarder-ovs:ovs-node']['node-id'] = "/opendaylight-inventory:nodes/opendaylight-inventory:node[opendaylight-inventory:id='openflow:"+id+"']"
+        #sff['service-function-forwarder-ovs:ovs-bridge']['uuid'] = uuid
+        sff['service-function-forwarder-ovs:ovs-node'] = {}
+        #sff['service-function-forwarder-ovs:ovs-node']['node-id'] = "/network-topology:network-topology/network-topology:topology[network-topology:topology-id='ovsdb=1']/network-topology:node[network-topology:node-id='ovsdb://uuid/"+uuid+"']"
+        sff['service-function-forwarder-ovs:ovs-node']['node-id'] = "/opendaylight-inventory:nodes/opendaylight-inventory:node[opendaylight-inventory:id='openflow:"+id+"']"
         sff['sff-data-plane-locator'] = []
 
         sfdpl = {}

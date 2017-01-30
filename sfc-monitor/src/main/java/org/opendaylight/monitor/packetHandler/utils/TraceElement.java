@@ -27,6 +27,7 @@ public class TraceElement  {
     private TreeMap<Long, HopAndPktCounter> plotDelay = new TreeMap<>();
     private Long lastPlot = new Long(0);
     private long inTime;
+    private double stdDev;
 
     TraceElement (String sffName, String sfName, int in, int out, int ttl) {
         this.sffName = sffName;
@@ -102,8 +103,7 @@ public class TraceElement  {
         timeAndHops.add(new TimeAndHop(timestamp, delay));
     }
 
-    public String getPlot(ArrayList<Long> pktInCounter) {
-        Collections.sort(pktInCounter);
+    public String getPlot() {
         if (plotDelay == null) {
             return null;
         }
@@ -179,9 +179,28 @@ public class TraceElement  {
 
             plotDelay.put(d.timestamp, hopAndPktCounter);
         }
-        if (timeAndHops.size() == 0) return sum;
-        return sum / (float)timeAndHops.size();
+        float avg;
+        if (timeAndHops.size() == 0) avg = sum;
+        avg = sum / (float)timeAndHops.size();
+        return avg;
     }
+
+    public double getStdDev(float avg) {
+
+        ArrayList<Double> stdDeviation = new ArrayList<>();
+        for (TimeAndHop d : timeAndHops) {
+            stdDeviation.add(Math.pow((d.hopDelay-avg),2));
+        }
+        long sum = 0;
+        for (Double d : stdDeviation) {
+            sum += d;
+        }
+        float avgSum = sum / (float)timeAndHops.size();
+        stdDev = Math.sqrt(avgSum);
+
+        return stdDev;
+    }
+
 
     public long getPktCount() {
         return timeAndHops.size();
